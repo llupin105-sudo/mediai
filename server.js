@@ -13,11 +13,16 @@
 require('dotenv').config();
 const express = require('express');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const Stripe = require('stripe');
 const { anonymize, deanonymize } = require('./anonymizer');
 const { PROMPTS } = require('./prompts');
 
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
+// NOTE : en dev, un secret par défaut est utilisé si la variable n'est pas définie.
+// Sur Render, définis toujours JWT_SECRET comme variable d'environnement en production.
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-a-changer-en-production';
 
 // ── DEBUG : vérifie la clé au démarrage du serveur ─────────────────
 console.log('═══════════════════════════════════════');
@@ -41,7 +46,7 @@ app.use((req, res, next) => {
 
 // ── Stockage en mémoire (à remplacer par PostgreSQL chiffré) ───────
 const compteRendus = new Map();
-const freeUsage = new Map(); // empreinte navigateur -> nombre d'analyses gratuites utilisées
+const users = new Map(); // email -> { id, email, passwordHash, isPro, freeUsageCount, stripeCustomerId }
 const FREE_LIMIT = 3;
 
 // ── Middleware de journalisation HDS ──────────────────────────────
@@ -62,36 +67,101 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── Auth middleware (simplifié — JWT en production) ────────────────
+// ── Auth middleware : vérifie un vrai token JWT ────────────────────
 function requireAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
     return res.status(401).json({ error: 'Authentification requise' });
   }
-  // En production : valider le JWT, extraire l'ID médecin, vérifier les droits
-  req.medecin = { id: 'MED_001', rpps: '10006789123', specialite: 'generaliste' };
-  next();
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const user = users.get(payload.email);
+    if (!user) return res.status(401).json({ error: 'Utilisateur introuvable' });
+    req.medecin = user;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Session invalide ou expirée' });
+  }
 }
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/auth/signup
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/auth/signup', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password || password.length < 8) {
+    return res.status(400).json({ error: 'Email invalide ou mot de passe trop court (8 caractères minimum)' });
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+  if (users.has(normalizedEmail)) {
+    return res.status(409).json({ error: 'Un compte existe déjà avec cet email' });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = {
+    id: crypto.randomUUID(),
+    email: normalizedEmail,
+    passwordHash,
+    isPro: false,
+    freeUsageCount: 0,
+    stripeCustomerId: null,
+  };
+  users.set(normalizedEmail, user);
+
+  const token = jwt.sign({ email: normalizedEmail }, JWT_SECRET, { expiresIn: '30d' });
+  return res.json({
+    token,
+    user: { email: user.email, isPro: user.isPro, freeUsageCount: user.freeUsageCount },
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/auth/login
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  const user = users.get(normalizedEmail);
+
+  if (!user || !(await bcrypt.compare(password || '', user.passwordHash))) {
+    return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+  }
+
+  const token = jwt.sign({ email: normalizedEmail }, JWT_SECRET, { expiresIn: '30d' });
+  return res.json({
+    token,
+    user: { email: user.email, isPro: user.isPro, freeUsageCount: user.freeUsageCount },
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/auth/me — vérifie le token et renvoie l'état du compte
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  return res.json({
+    user: {
+      email: req.medecin.email,
+      isPro: req.medecin.isPro,
+      freeUsageCount: req.medecin.freeUsageCount,
+    },
+  });
+});
 
 // ────────────────────────────────────────────────────────────────────
 // POST /api/transcription/analyze
 // Corps : { transcription: string, specialite?: string }
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
-  const { transcription, specialite = 'generaliste', clientId, isPro } = req.body;
+  const { transcription, specialite = 'generaliste' } = req.body;
+  const user = req.medecin;
 
-  // ── Vérification du quota gratuit (sauf si abonné Pro) ────────────
-  if (!isPro) {
-    const key = clientId || req.ip;
-    const used = freeUsage.get(key) || 0;
-    if (used >= FREE_LIMIT) {
-      return res.status(402).json({
-        error: 'Quota gratuit atteint',
-        upgradeRequired: true,
-        limit: FREE_LIMIT,
-      });
-    }
-    freeUsage.set(key, used + 1);
+  // ── Vérification du quota gratuit — basée sur le compte, pas sur le navigateur ──
+  if (!user.isPro && user.freeUsageCount >= FREE_LIMIT) {
+    return res.status(402).json({
+      error: 'Quota gratuit atteint',
+      upgradeRequired: true,
+      limit: FREE_LIMIT,
+    });
   }
 
   if (!transcription || transcription.trim().length < 50) {
@@ -173,6 +243,11 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
     // En production : INSERT INTO compte_rendus (chiffré AES-256)
     compteRendus.set(id, saved);
 
+    // Incrémente le compteur gratuit uniquement après succès, sur le vrai compte
+    if (!user.isPro) {
+      user.freeUsageCount += 1;
+    }
+
     return res.json({
       success: true,
       id,
@@ -181,7 +256,12 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
         anonymisation: anonStats,
         tokens: saved.tokensUsed,
         cout_eur: (saved.tokensUsed * 0.000003).toFixed(4),
-      }
+      },
+      account: {
+        isPro: user.isPro,
+        freeUsageCount: user.freeUsageCount,
+        freeLimit: FREE_LIMIT,
+      },
     });
 
   } catch (err) {
@@ -209,7 +289,7 @@ app.get('/api/compterendu/:id', requireAuth, (req, res) => {
 // POST /api/create-checkout-session
 // Crée une session de paiement Stripe pour l'abonnement Pro
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/create-checkout-session', async (req, res) => {
+app.post('/api/create-checkout-session', requireAuth, async (req, res) => {
   if (!stripe) {
     return res.status(500).json({ error: 'Stripe non configuré côté serveur' });
   }
@@ -218,8 +298,9 @@ app.post('/api/create-checkout-session', async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
+      customer_email: req.medecin.email,
       line_items: [{
-        price: process.env.STRIPE_PRICE_ID, // ID du prix créé dans le dashboard Stripe
+        price: process.env.STRIPE_PRICE_ID,
         quantity: 1,
       }],
       success_url: `${req.headers.origin}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -237,15 +318,25 @@ app.post('/api/create-checkout-session', async (req, res) => {
 // GET /api/verify-session?session_id=...
 // Vérifie qu'un paiement a bien été effectué (appelé au retour de Stripe)
 // ────────────────────────────────────────────────────────────────────
-app.get('/api/verify-session', async (req, res) => {
+app.get('/api/verify-session', requireAuth, async (req, res) => {
   if (!stripe) {
     return res.status(500).json({ error: 'Stripe non configuré côté serveur' });
   }
 
   try {
     const session = await stripe.checkout.sessions.retrieve(req.query.session_id);
+    const paid = session.payment_status === 'paid';
+
+    if (paid) {
+      // Marque le compte comme Pro côté serveur — c'est la source de vérité,
+      // pas une valeur envoyée par le navigateur.
+      const user = req.medecin;
+      user.isPro = true;
+      user.stripeCustomerId = session.customer;
+    }
+
     return res.json({
-      paid: session.payment_status === 'paid',
+      paid,
       customerEmail: session.customer_details?.email || null,
     });
   } catch (err) {
