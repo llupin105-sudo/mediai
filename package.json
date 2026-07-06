@@ -1,17 +1,14 @@
 {
-  "name": "mediai",
+  "name": "mediai-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "MediIA backend - anonymisation et structuration de comptes-rendus medicaux",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5",
+    "stripe": "^16.8.0"
   }
 }
