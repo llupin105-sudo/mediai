@@ -294,6 +294,9 @@ app.post('/api/create-checkout-session', requireAuth, async (req, res) => {
     return res.status(500).json({ error: 'Stripe non configuré côté serveur' });
   }
 
+  // Utilise l'origine de la requête si présente, sinon l'adresse du site en dur
+  const origin = req.headers.origin || 'https://mediai-site.vercel.app';
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -303,8 +306,8 @@ app.post('/api/create-checkout-session', requireAuth, async (req, res) => {
         price: process.env.STRIPE_PRICE_ID,
         quantity: 1,
       }],
-      success_url: `${req.headers.origin}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.origin}?checkout=cancelled`,
+      success_url: `${origin}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}?checkout=cancelled`,
     });
 
     return res.json({ url: session.url });
