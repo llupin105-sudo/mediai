@@ -13,8 +13,11 @@
 require('dotenv').config();
 const express = require('express');
 const crypto = require('crypto');
+const Stripe = require('stripe');
 const { anonymize, deanonymize } = require('./anonymizer');
 const { PROMPTS } = require('./prompts');
+
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 // ── DEBUG : vérifie la clé au démarrage du serveur ─────────────────
 console.log('═══════════════════════════════════════');
@@ -38,6 +41,8 @@ app.use((req, res, next) => {
 
 // ── Stockage en mémoire (à remplacer par PostgreSQL chiffré) ───────
 const compteRendus = new Map();
+const freeUsage = new Map(); // empreinte navigateur -> nombre d'analyses gratuites utilisées
+const FREE_LIMIT = 3;
 
 // ── Middleware de journalisation HDS ──────────────────────────────
 // Obligation légale : tracer tous les accès aux données de santé
@@ -73,7 +78,21 @@ function requireAuth(req, res, next) {
 // Corps : { transcription: string, specialite?: string }
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
-  const { transcription, specialite = 'generaliste' } = req.body;
+  const { transcription, specialite = 'generaliste', clientId, isPro } = req.body;
+
+  // ── Vérification du quota gratuit (sauf si abonné Pro) ────────────
+  if (!isPro) {
+    const key = clientId || req.ip;
+    const used = freeUsage.get(key) || 0;
+    if (used >= FREE_LIMIT) {
+      return res.status(402).json({
+        error: 'Quota gratuit atteint',
+        upgradeRequired: true,
+        limit: FREE_LIMIT,
+      });
+    }
+    freeUsage.set(key, used + 1);
+  }
 
   if (!transcription || transcription.trim().length < 50) {
     return res.status(400).json({
@@ -184,6 +203,54 @@ app.get('/api/compterendu/:id', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'Accès refusé' });
   }
   return res.json(cr);
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/create-checkout-session
+// Crée une session de paiement Stripe pour l'abonnement Pro
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/create-checkout-session', async (req, res) => {
+  if (!stripe) {
+    return res.status(500).json({ error: 'Stripe non configuré côté serveur' });
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{
+        price: process.env.STRIPE_PRICE_ID, // ID du prix créé dans le dashboard Stripe
+        quantity: 1,
+      }],
+      success_url: `${req.headers.origin}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin}?checkout=cancelled`,
+    });
+
+    return res.json({ url: session.url });
+  } catch (err) {
+    console.error('[STRIPE ERROR]', err.message);
+    return res.status(500).json({ error: 'Impossible de créer la session de paiement' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/verify-session?session_id=...
+// Vérifie qu'un paiement a bien été effectué (appelé au retour de Stripe)
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/verify-session', async (req, res) => {
+  if (!stripe) {
+    return res.status(500).json({ error: 'Stripe non configuré côté serveur' });
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(req.query.session_id);
+    return res.json({
+      paid: session.payment_status === 'paid',
+      customerEmail: session.customer_details?.email || null,
+    });
+  } catch (err) {
+    return res.status(400).json({ error: 'Session invalide' });
+  }
 });
 
 // ────────────────────────────────────────────────────────────────────
