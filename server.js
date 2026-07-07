@@ -15,9 +15,15 @@ const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
 const Stripe = require('stripe');
 const { anonymize, deanonymize } = require('./anonymizer');
 const { PROMPTS } = require('./prompts');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 Mo max, comme la limite de l'API Whisper
+});
 
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 // NOTE : en dev, un secret par défaut est utilisé si la variable n'est pas définie.
@@ -145,6 +151,46 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
       freeUsageCount: req.medecin.freeUsageCount,
     },
   });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/audio/transcribe
+// Reçoit un fichier audio, le transcrit via l'API Whisper (OpenAI)
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/audio/transcribe', requireAuth, upload.single('audio'), async (req, res) => {
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({ error: 'Transcription audio non configurée côté serveur' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: 'Aucun fichier audio reçu' });
+  }
+
+  try {
+    // Construit une requête multipart/form-data vers l'API Whisper
+    const form = new FormData();
+    form.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), req.file.originalname || 'audio.webm');
+    form.append('model', 'whisper-1');
+    form.append('language', 'fr');
+
+    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+      body: form,
+    });
+
+    if (!whisperRes.ok) {
+      const errText = await whisperRes.text();
+      console.error('[WHISPER ERROR]', whisperRes.status, errText);
+      throw new Error(`Whisper API error: ${whisperRes.status}`);
+    }
+
+    const data = await whisperRes.json();
+    return res.json({ success: true, text: data.text || '' });
+
+  } catch (err) {
+    console.error('[ERROR] transcription audio', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la transcription audio' });
+  }
 });
 
 // ────────────────────────────────────────────────────────────────────
