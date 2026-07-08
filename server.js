@@ -111,13 +111,14 @@ app.post('/api/auth/signup', async (req, res) => {
     isPro: false,
     freeUsageCount: 0,
     stripeCustomerId: null,
+    profile: { nom: '', rpps: '', cabinet: '', telephone: '' },
   };
   users.set(normalizedEmail, user);
 
   const token = jwt.sign({ email: normalizedEmail }, JWT_SECRET, { expiresIn: '30d' });
   return res.json({
     token,
-    user: { email: user.email, isPro: user.isPro, freeUsageCount: user.freeUsageCount },
+    user: { email: user.email, isPro: user.isPro, freeUsageCount: user.freeUsageCount, profile: user.profile },
   });
 });
 
@@ -136,7 +137,7 @@ app.post('/api/auth/login', async (req, res) => {
   const token = jwt.sign({ email: normalizedEmail }, JWT_SECRET, { expiresIn: '30d' });
   return res.json({
     token,
-    user: { email: user.email, isPro: user.isPro, freeUsageCount: user.freeUsageCount },
+    user: { email: user.email, isPro: user.isPro, freeUsageCount: user.freeUsageCount, profile: user.profile },
   });
 });
 
@@ -149,8 +150,24 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
       email: req.medecin.email,
       isPro: req.medecin.isPro,
       freeUsageCount: req.medecin.freeUsageCount,
+      profile: req.medecin.profile || { nom: '', rpps: '', cabinet: '', telephone: '' },
     },
   });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// PUT /api/auth/profile — met à jour les informations du médecin
+// (utilisées dans le pied de page des exports PDF)
+// ────────────────────────────────────────────────────────────────────
+app.put('/api/auth/profile', requireAuth, (req, res) => {
+  const { nom, rpps, cabinet, telephone } = req.body;
+  req.medecin.profile = {
+    nom: (nom || '').trim(),
+    rpps: (rpps || '').trim(),
+    cabinet: (cabinet || '').trim(),
+    telephone: (telephone || '').trim(),
+  };
+  return res.json({ success: true, profile: req.medecin.profile });
 });
 
 // ────────────────────────────────────────────────────────────────────
