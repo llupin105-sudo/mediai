@@ -1,7 +1,7 @@
 {
   "name": "mediai-backend",
   "version": "1.0.0",
-  "description": "MediIA backend - anonymisation, structuration de comptes-rendus medicaux, comptes utilisateurs, abonnements et transcription audio",
+  "description": "MediIA backend - anonymisation, structuration IA, comptes utilisateurs, abonnements, audio et base PostgreSQL",
   "main": "server.js",
   "engines": {
     "node": ">=18.0.0"
@@ -15,6 +15,7 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
+    "pg": "^8.13.0",
     "stripe": "^16.8.0"
   }
 }
