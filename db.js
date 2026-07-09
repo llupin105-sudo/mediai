@@ -75,6 +75,45 @@ async function initDb() {
     );
   `);
 
+  // ── Fiche patient ────────────────────────────────────────────────
+  // Note : en Phase 1, le patient est géré par le médecin (pas de compte
+  // patient autonome). La colonne medecin_id représente le praticien
+  // "propriétaire" de la fiche. La Phase 4 introduira un vrai compte
+  // patient indépendant, relié à cette même table.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS patients (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      nom TEXT NOT NULL,
+      prenom TEXT NOT NULL,
+      date_naissance TEXT,
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  // ── Événements médicaux ──────────────────────────────────────────
+  // Table générique : un événement peut être une consultation, une
+  // ordonnance, un courrier, un examen, etc. C'est cette structure qui
+  // permettra plus tard la chronologie intelligente (Phase 2) sans
+  // avoir à réunir plusieurs tables différentes entre elles.
+  // `data` contient le contenu spécifique au type (ex: le compte-rendu
+  // SOAP complet pour une consultation).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS medical_events (
+      id UUID PRIMARY KEY,
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      event_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+      data JSONB NOT NULL,
+      tokens_used INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_medical_events_patient ON medical_events(patient_id, event_date DESC);`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id UUID PRIMARY KEY,
@@ -200,6 +239,65 @@ async function listCompteRendusByMedecin(medecinId, limit = 50) {
   return result.rows;
 }
 
+// ── Patients ──────────────────────────────────────────────────────
+
+async function createPatient({ id, medecinId, nom, prenom, dateNaissance, notes }) {
+  const result = await pool.query(
+    `INSERT INTO patients (id, medecin_id, nom, prenom, date_naissance, notes)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [id, medecinId, nom, prenom, dateNaissance || null, notes || '']
+  );
+  return result.rows[0];
+}
+
+async function listPatientsByMedecin(medecinId) {
+  const result = await pool.query(
+    `SELECT p.*,
+       (SELECT COUNT(*) FROM medical_events e WHERE e.patient_id = p.id) AS events_count,
+       (SELECT MAX(e.event_date) FROM medical_events e WHERE e.patient_id = p.id) AS last_event_date
+     FROM patients p WHERE p.medecin_id = $1 ORDER BY p.nom, p.prenom`,
+    [medecinId]
+  );
+  return result.rows;
+}
+
+async function getPatientById(id) {
+  const result = await pool.query(`SELECT * FROM patients WHERE id = $1`, [id]);
+  return result.rows[0] || null;
+}
+
+async function updatePatientNotes(id, notes) {
+  const result = await pool.query(
+    `UPDATE patients SET notes = $1 WHERE id = $2 RETURNING *`,
+    [notes, id]
+  );
+  return result.rows[0];
+}
+
+// ── Événements médicaux (consultations, ordonnances, courriers...) ─
+
+async function createMedicalEvent({ id, patientId, medecinId, type, title, data, tokensUsed }) {
+  const result = await pool.query(
+    `INSERT INTO medical_events (id, patient_id, medecin_id, type, title, data, tokens_used)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [id, patientId, medecinId, type, title, JSON.stringify(data), tokensUsed || null]
+  );
+  return result.rows[0];
+}
+
+async function listEventsByPatient(patientId) {
+  const result = await pool.query(
+    `SELECT * FROM medical_events WHERE patient_id = $1 ORDER BY event_date DESC`,
+    [patientId]
+  );
+  return result.rows;
+}
+
+async function getMedicalEventById(id) {
+  const result = await pool.query(`SELECT * FROM medical_events WHERE id = $1`, [id]);
+  return result.rows[0] || null;
+}
+
 // ── Audit HDS ─────────────────────────────────────────────────────
 
 async function logAudit({ id, method, path, ip, userEmail, requestId }) {
@@ -228,5 +326,12 @@ module.exports = {
   saveCompteRendu,
   getCompteRenduById,
   listCompteRendusByMedecin,
+  createPatient,
+  listPatientsByMedecin,
+  getPatientById,
+  updatePatientNotes,
+  createMedicalEvent,
+  listEventsByPatient,
+  getMedicalEventById,
   logAudit,
 };

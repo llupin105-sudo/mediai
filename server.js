@@ -273,11 +273,14 @@ app.post('/api/audio/transcribe', requireAuth, upload.single('audio'), async (re
 // POST /api/transcription/analyze
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
-  const { transcription, specialite = 'generaliste' } = req.body;
+  const { transcription, specialite = 'generaliste', patientId } = req.body;
   const user = req.medecin;
 
   if (!user.isPro && user.freeUsageCount >= FREE_LIMIT) {
     return res.status(402).json({ error: 'Quota gratuit atteint', upgradeRequired: true, limit: FREE_LIMIT });
+  }
+  if (!patientId) {
+    return res.status(400).json({ error: 'Sélectionnez un patient avant de générer un compte-rendu' });
   }
   if (!transcription || transcription.trim().length < 50) {
     return res.status(400).json({ error: 'Transcription trop courte (minimum 50 caractères)' });
@@ -287,6 +290,12 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
   }
 
   try {
+    // Vérifie que le patient existe et appartient bien à ce médecin
+    const patient = await db.getPatientById(patientId);
+    if (!patient || patient.medecin_id !== user.id) {
+      return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
+    }
+
     // 1. Anonymisation
     const { anonymized, tokenMap, stats: anonStats } = anonymize(transcription);
 
@@ -326,10 +335,20 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
     const restored = deanonymize(JSON.stringify(compteRenduTokenise), tokenMap);
     const compteRenduFinal = JSON.parse(restored);
 
-    // 5. Sauvegarde en base (chiffrée au repos par Render/PostgreSQL)
+    // 5. Sauvegarde comme événement médical, rattaché au patient
+    // (structure générique qui accueillera aussi les ordonnances et
+    // courriers, et servira de base à la chronologie intelligente)
     const id = crypto.randomUUID();
     const tokensUsed = (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0);
-    await db.saveCompteRendu({ id, medecinId: user.id, specialite, compteRendu: compteRenduFinal, tokensUsed });
+    await db.createMedicalEvent({
+      id,
+      patientId,
+      medecinId: user.id,
+      type: 'consultation',
+      title: compteRenduFinal.resume_1_ligne || 'Consultation',
+      data: compteRenduFinal,
+      tokensUsed,
+    });
 
     // 6. Incrémente le quota gratuit en base, si applicable
     let updatedUser = user;
@@ -360,6 +379,65 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
+// Patients — création, liste, détail, notes
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/patients', requireAuth, async (req, res) => {
+  const { nom, prenom, dateNaissance, notes } = req.body;
+  if (!nom || !prenom) {
+    return res.status(400).json({ error: 'Nom et prénom du patient requis' });
+  }
+  try {
+    const patient = await db.createPatient({
+      id: crypto.randomUUID(),
+      medecinId: req.medecin.id,
+      nom: nom.trim(),
+      prenom: prenom.trim(),
+      dateNaissance: dateNaissance || null,
+      notes: notes || '',
+    });
+    return res.json({ success: true, patient });
+  } catch (err) {
+    console.error('[ERROR create patient]', err.message);
+    return res.status(500).json({ error: 'Erreur lors de la création du patient' });
+  }
+});
+
+app.get('/api/patients', requireAuth, async (req, res) => {
+  try {
+    const patients = await db.listPatientsByMedecin(req.medecin.id);
+    return res.json({ items: patients });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la récupération des patients' });
+  }
+});
+
+app.get('/api/patients/:id', requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const events = await db.listEventsByPatient(patient.id);
+    return res.json({ patient, events });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la récupération du dossier patient' });
+  }
+});
+
+app.put('/api/patients/:id/notes', requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const updated = await db.updatePatientNotes(req.params.id, req.body.notes || '');
+    return res.json({ success: true, patient: updated });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la mise à jour des notes' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
 // GET /api/compterendu/:id
 // ────────────────────────────────────────────────────────────────────
 app.get('/api/compterendu/:id', requireAuth, async (req, res) => {
@@ -374,7 +452,7 @@ app.get('/api/compterendu/:id', requireAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
-// GET /api/historique — liste des comptes-rendus du médecin connecté
+// GET /api/historique — liste des anciens comptes-rendus (avant la fiche patient)
 // ────────────────────────────────────────────────────────────────────
 app.get('/api/historique', requireAuth, async (req, res) => {
   try {
