@@ -54,6 +54,11 @@ async function initDb() {
     );
   `);
 
+  // Ajout des colonnes de préférences — ALTER sûr même si la table existe déjà
+  // (ne casse pas les comptes créés avant l'ajout de cette fonctionnalité)
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pref_default_specialite TEXT DEFAULT 'generaliste';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pref_instructions TEXT DEFAULT '';`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS compte_rendus (
       id UUID PRIMARY KEY,
@@ -96,6 +101,10 @@ function rowToUser(row) {
       cabinet: row.profile_cabinet || '',
       telephone: row.profile_telephone || '',
     },
+    preferences: {
+      defaultSpecialite: row.pref_default_specialite || 'generaliste',
+      instructions: row.pref_instructions || '',
+    },
   };
 }
 
@@ -119,6 +128,14 @@ async function updateUserProfile(email, { nom, rpps, cabinet, telephone }) {
     `UPDATE users SET profile_nom = $1, profile_rpps = $2, profile_cabinet = $3, profile_telephone = $4
      WHERE email = $5 RETURNING *`,
     [nom, rpps, cabinet, telephone, email]
+  );
+  return rowToUser(result.rows[0]);
+}
+
+async function updateUserPreferences(email, { defaultSpecialite, instructions }) {
+  const result = await pool.query(
+    `UPDATE users SET pref_default_specialite = $1, pref_instructions = $2 WHERE email = $3 RETURNING *`,
+    [defaultSpecialite, instructions, email]
   );
   return rowToUser(result.rows[0]);
 }
@@ -185,6 +202,7 @@ module.exports = {
   createUser,
   getUserByEmail,
   updateUserProfile,
+  updateUserPreferences,
   incrementFreeUsage,
   setUserPro,
   saveCompteRendu,

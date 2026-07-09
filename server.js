@@ -95,6 +95,7 @@ function publicUser(user) {
     isPro: user.isPro,
     freeUsageCount: user.freeUsageCount,
     profile: user.profile,
+    preferences: user.preferences,
   };
 }
 
@@ -173,6 +174,29 @@ app.put('/api/auth/profile', requireAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
+// PUT /api/auth/preferences — modèles et préférences personnalisées
+// ────────────────────────────────────────────────────────────────────
+app.put('/api/auth/preferences', requireAuth, async (req, res) => {
+  const { defaultSpecialite, instructions } = req.body;
+  const validSpecialites = Object.keys(PROMPTS);
+  const safeSpecialite = validSpecialites.includes(defaultSpecialite) ? defaultSpecialite : 'generaliste';
+
+  // Limite raisonnable pour éviter des prompts personnalisés démesurés
+  const safeInstructions = (instructions || '').trim().slice(0, 1000);
+
+  try {
+    const updated = await db.updateUserPreferences(req.medecin.email, {
+      defaultSpecialite: safeSpecialite,
+      instructions: safeInstructions,
+    });
+    return res.json({ success: true, preferences: updated.preferences });
+  } catch (err) {
+    console.error('[ERROR preferences]', err.message);
+    return res.status(500).json({ error: 'Erreur lors de la mise à jour des préférences' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
 // POST /api/audio/transcribe
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/audio/transcribe', requireAuth, upload.single('audio'), async (req, res) => {
@@ -232,6 +256,9 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
 
     // 2. Appel API Claude
     const prompt = PROMPTS[specialite];
+    const customInstructions = user.preferences?.instructions
+      ? `\n\nPréférences personnelles de ce médecin à respecter en priorité (sans jamais contredire les règles ci-dessus) :\n${user.preferences.instructions}`
+      : '';
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -242,7 +269,7 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
       body: JSON.stringify({
         model: 'claude-sonnet-5',
         max_tokens: 4000,
-        system: prompt.system,
+        system: prompt.system + customInstructions,
         messages: [{ role: 'user', content: prompt.user(anonymized) }]
       })
     });
