@@ -5,6 +5,7 @@
  */
 
 const { Pool } = require('pg');
+const crypto = require('crypto');
 
 if (!process.env.DATABASE_URL) {
   console.warn('DATABASE_URL non définie — le serveur ne pourra pas se connecter à la base.');
@@ -59,6 +60,10 @@ async function initDb() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pref_default_specialite TEXT DEFAULT 'generaliste';`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pref_instructions TEXT DEFAULT '';`);
 
+  // Comptes via Google : pas de mot de passe, donc la colonne doit devenir optionnelle
+  await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'password';`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS compte_rendus (
       id UUID PRIMARY KEY,
@@ -92,6 +97,7 @@ function rowToUser(row) {
     id: row.id,
     email: row.email,
     passwordHash: row.password_hash,
+    authProvider: row.auth_provider || 'password',
     isPro: row.is_pro,
     freeUsageCount: row.free_usage_count,
     stripeCustomerId: row.stripe_customer_id,
@@ -120,6 +126,19 @@ async function createUser({ id, email, passwordHash }) {
 
 async function getUserByEmail(email) {
   const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
+  return rowToUser(result.rows[0]);
+}
+
+// Connexion via Google : si le compte existe déjà (créé par mot de passe ou
+// Google précédemment), on le connecte. Sinon, on en crée un sans mot de passe.
+async function findOrCreateGoogleUser(email) {
+  const existing = await getUserByEmail(email);
+  if (existing) return existing;
+
+  const result = await pool.query(
+    `INSERT INTO users (id, email, password_hash, auth_provider) VALUES ($1, $2, NULL, 'google') RETURNING *`,
+    [crypto.randomUUID(), email]
+  );
   return rowToUser(result.rows[0]);
 }
 
@@ -201,6 +220,7 @@ module.exports = {
   initDb,
   createUser,
   getUserByEmail,
+  findOrCreateGoogleUser,
   updateUserProfile,
   updateUserPreferences,
   incrementFreeUsage,

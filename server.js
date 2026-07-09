@@ -23,6 +23,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const Stripe = require('stripe');
+const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
 const { PROMPTS } = require('./prompts');
 const db = require('./db');
@@ -33,6 +34,7 @@ const upload = multer({
 });
 
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
+const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-a-changer-en-production';
 const FREE_LIMIT = 3;
 
@@ -144,6 +146,40 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) {
     console.error('[ERROR login]', err.message);
     return res.status(500).json({ error: 'Erreur lors de la connexion' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/auth/google
+// Corps : { credential: <ID token renvoyé par Google Identity Services> }
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/auth/google', async (req, res) => {
+  if (!googleClient) {
+    return res.status(500).json({ error: 'Connexion Google non configurée côté serveur' });
+  }
+  const { credential } = req.body;
+  if (!credential) {
+    return res.status(400).json({ error: 'Jeton Google manquant' });
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = (payload.email || '').trim().toLowerCase();
+
+    if (!email || !payload.email_verified) {
+      return res.status(401).json({ error: 'Email Google non vérifié' });
+    }
+
+    const user = await db.findOrCreateGoogleUser(email);
+    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '30d' });
+    return res.json({ token, user: publicUser(user) });
+  } catch (err) {
+    console.error('[GOOGLE AUTH ERROR]', err.message);
+    return res.status(401).json({ error: 'Connexion Google invalide' });
   }
 });
 

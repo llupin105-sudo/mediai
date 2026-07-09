@@ -1,7 +1,7 @@
 {
   "name": "mediai-backend",
   "version": "1.0.0",
-  "description": "MediIA backend - anonymisation, structuration IA, comptes utilisateurs, abonnements, audio et base PostgreSQL",
+  "description": "MediIA backend - IA medicale, comptes utilisateurs (email + Google), abonnements, audio, PDF, email et PostgreSQL",
   "main": "server.js",
   "engines": {
     "node": ">=18.0.0"
@@ -13,6 +13,7 @@
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "google-auth-library": "^9.14.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
     "pg": "^8.13.0",
