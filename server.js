@@ -379,6 +379,62 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
+// POST /api/ordonnance/generate
+// Génère une ordonnance à partir des prescriptions d'un événement
+// consultation existant, et l'enregistre comme nouvel événement
+// rattaché au même patient.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/ordonnance/generate', requireAuth, async (req, res) => {
+  const { patientId, prescriptions } = req.body;
+  const user = req.medecin;
+
+  if (!patientId) {
+    return res.status(400).json({ error: 'Patient manquant' });
+  }
+  if (!Array.isArray(prescriptions) || prescriptions.length === 0) {
+    return res.status(400).json({ error: 'Aucune prescription à mettre en ordonnance' });
+  }
+
+  try {
+    const patient = await db.getPatientById(patientId);
+    if (!patient || patient.medecin_id !== user.id) {
+      return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
+    }
+
+    const ordonnanceData = {
+      patient: { nom: patient.nom, prenom: patient.prenom, dateNaissance: patient.date_naissance },
+      medecin: {
+        nom: user.profile?.nom || user.email,
+        rpps: user.profile?.rpps || '',
+        cabinet: user.profile?.cabinet || '',
+      },
+      dateOrdonnance: new Date().toISOString(),
+      prescriptions: prescriptions.map(p => ({
+        medicament: p.medicament || '',
+        posologie: p.posologie || '',
+        duree: p.duree || '',
+        voie: p.voie || '',
+      })),
+    };
+
+    const id = crypto.randomUUID();
+    await db.createMedicalEvent({
+      id,
+      patientId,
+      medecinId: user.id,
+      type: 'ordonnance',
+      title: `Ordonnance — ${prescriptions.length} médicament(s)`,
+      data: ordonnanceData,
+    });
+
+    return res.json({ success: true, id, ordonnance: ordonnanceData });
+  } catch (err) {
+    console.error('[ERROR ordonnance]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de la génération de l'ordonnance" });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
 // Patients — création, liste, détail, notes
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/patients', requireAuth, async (req, res) => {
