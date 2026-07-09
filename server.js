@@ -367,6 +367,59 @@ app.get('/api/verify-session', requireAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
+// POST /api/send-report-email
+// Envoie le compte-rendu (PDF généré côté navigateur) par email via Resend
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/send-report-email', requireAuth, async (req, res) => {
+  if (!process.env.RESEND_API_KEY) {
+    return res.status(500).json({ error: "Envoi d'email non configuré côté serveur" });
+  }
+  const { recipientEmail, pdfBase64, resume } = req.body;
+  if (!recipientEmail || !pdfBase64) {
+    return res.status(400).json({ error: 'Destinataire ou fichier manquant' });
+  }
+
+  const senderName = req.medecin.profile?.nom || req.medecin.email;
+
+  try {
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'MédiIA <onboarding@resend.dev>', // adresse de test Resend, sans domaine à vérifier
+        to: [recipientEmail],
+        subject: `Compte-rendu médical — ${resume || 'consultation'}`,
+        html: `
+          <div style="font-family: sans-serif; color: #16211c;">
+            <p>Bonjour,</p>
+            <p>Vous trouverez ci-joint un compte-rendu médical transmis par <strong>${senderName}</strong> via MédiIA.</p>
+            <p style="font-size: 13px; color: #8b968e;">Document confidentiel à caractère médical, soumis au secret médical et au RGPD.</p>
+          </div>
+        `,
+        attachments: [{
+          filename: 'compte-rendu-mediai.pdf',
+          content: pdfBase64,
+        }],
+      }),
+    });
+
+    if (!resendRes.ok) {
+      const errText = await resendRes.text();
+      console.error('[RESEND ERROR]', resendRes.status, errText);
+      throw new Error(`Erreur d'envoi (${resendRes.status})`);
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ERROR] send-report-email', req.requestId, err.message);
+    return res.status(500).json({ error: "Impossible d'envoyer l'email pour le moment" });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
 // GET /health
 // ────────────────────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
