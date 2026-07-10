@@ -64,6 +64,10 @@ async function initDb() {
   await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'password';`);
 
+  // Profil professionnel enrichi — fondation pour la recherche de praticien (Phase 4)
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_specialite TEXT DEFAULT '';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_presentation TEXT DEFAULT '';`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS compte_rendus (
       id UUID PRIMARY KEY,
@@ -145,6 +149,8 @@ function rowToUser(row) {
       rpps: row.profile_rpps || '',
       cabinet: row.profile_cabinet || '',
       telephone: row.profile_telephone || '',
+      specialite: row.profile_specialite || '',
+      presentation: row.profile_presentation || '',
     },
     preferences: {
       defaultSpecialite: row.pref_default_specialite || 'generaliste',
@@ -181,11 +187,12 @@ async function findOrCreateGoogleUser(email) {
   return rowToUser(result.rows[0]);
 }
 
-async function updateUserProfile(email, { nom, rpps, cabinet, telephone }) {
+async function updateUserProfile(email, { nom, rpps, cabinet, telephone, specialite, presentation }) {
   const result = await pool.query(
-    `UPDATE users SET profile_nom = $1, profile_rpps = $2, profile_cabinet = $3, profile_telephone = $4
-     WHERE email = $5 RETURNING *`,
-    [nom, rpps, cabinet, telephone, email]
+    `UPDATE users SET profile_nom = $1, profile_rpps = $2, profile_cabinet = $3, profile_telephone = $4,
+       profile_specialite = $5, profile_presentation = $6
+     WHERE email = $7 RETURNING *`,
+    [nom, rpps, cabinet, telephone, specialite, presentation, email]
   );
   return rowToUser(result.rows[0]);
 }

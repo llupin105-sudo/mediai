@@ -194,13 +194,15 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // PUT /api/auth/profile
 // ────────────────────────────────────────────────────────────────────
 app.put('/api/auth/profile', requireAuth, async (req, res) => {
-  const { nom, rpps, cabinet, telephone } = req.body;
+  const { nom, rpps, cabinet, telephone, specialite, presentation } = req.body;
   try {
     const updated = await db.updateUserProfile(req.medecin.email, {
       nom: (nom || '').trim(),
       rpps: (rpps || '').trim(),
       cabinet: (cabinet || '').trim(),
       telephone: (telephone || '').trim(),
+      specialite: (specialite || '').trim(),
+      presentation: (presentation || '').trim().slice(0, 500),
     });
     return res.json({ success: true, profile: updated.profile });
   } catch (err) {
