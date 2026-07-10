@@ -379,6 +379,92 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
+// POST /api/courrier/generate
+// Génère un courrier de correspondance à partir d'un événement
+// consultation existant, via Claude, et l'enregistre comme nouvel
+// événement rattaché au même patient.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/courrier/generate', requireAuth, async (req, res) => {
+  const { patientId, eventId, motifAdressage } = req.body;
+  const user = req.medecin;
+
+  if (!patientId || !eventId) {
+    return res.status(400).json({ error: 'Patient ou consultation source manquant' });
+  }
+
+  try {
+    const patient = await db.getPatientById(patientId);
+    if (!patient || patient.medecin_id !== user.id) {
+      return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
+    }
+    const sourceEvent = await db.getMedicalEventById(eventId);
+    if (!sourceEvent || sourceEvent.patient_id !== patientId) {
+      return res.status(404).json({ error: 'Consultation source introuvable' });
+    }
+
+    // Le compte-rendu source est déjà dé-anonymisé en base — on le
+    // ré-anonymise avant de le renvoyer à Claude pour générer le courrier.
+    const compteRenduStr = JSON.stringify(sourceEvent.data);
+    const { anonymized, tokenMap } = anonymize(compteRenduStr);
+    const anonymizedJson = JSON.parse(anonymized);
+
+    const prompt = PROMPTS.courrier;
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 2000,
+        system: prompt.system,
+        messages: [{ role: 'user', content: prompt.user(anonymizedJson, motifAdressage) }]
+      })
+    });
+
+    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
+
+    const claudeData = await claudeRes.json();
+    const textBlocks = claudeData.content.filter(block => block.type === 'text');
+    const rawText = textBlocks.map(block => block.text).join('\n');
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Réponse Claude invalide');
+    const courrierTokenise = JSON.parse(jsonMatch[0]);
+
+    const restored = deanonymize(JSON.stringify(courrierTokenise), tokenMap);
+    const courrierFinal = JSON.parse(restored);
+
+    // Ajoute les infos d'expéditeur (médecin) et de patient pour la mise en page PDF
+    courrierFinal.expediteur = {
+      nom: user.profile?.nom || user.email,
+      rpps: user.profile?.rpps || '',
+      cabinet: user.profile?.cabinet || '',
+    };
+    courrierFinal.patient = { nom: patient.nom, prenom: patient.prenom, dateNaissance: patient.date_naissance };
+    courrierFinal.date = new Date().toISOString();
+
+    const id = crypto.randomUUID();
+    const tokensUsed = (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0);
+    await db.createMedicalEvent({
+      id,
+      patientId,
+      medecinId: user.id,
+      type: 'courrier',
+      title: courrierFinal.objet || 'Courrier de correspondance',
+      data: courrierFinal,
+      tokensUsed,
+    });
+
+    return res.json({ success: true, id, courrier: courrierFinal });
+  } catch (err) {
+    console.error('[ERROR courrier]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la génération du courrier' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
 // POST /api/ordonnance/generate
 // Génère une ordonnance à partir des prescriptions d'un événement
 // consultation existant, et l'enregistre comme nouvel événement

@@ -159,6 +159,40 @@ Génère uniquement un résumé médical concis en format structuré :
   "points_attention": ["alertes ou points importants"],
   "duree_consultation_estimee": "courte/standard/longue"
 }`
+  },
+
+  /**
+   * Courrier de correspondance — lettre à un confrère/spécialiste,
+   * générée à partir d'un compte-rendu déjà structuré (pas d'une
+   * nouvelle transcription brute).
+   */
+  courrier: {
+    system: BASE_SYSTEM + `
+
+Tu es spécialisé dans la rédaction de courriers médicaux de correspondance entre professionnels de santé français (médecin traitant → spécialiste, ou l'inverse).
+
+Règles supplémentaires pour ce format :
+- Ton formel et confraternel, comme un vrai courrier médical français ("Cher confrère,", "Je vous adresse...", "Je reste à votre disposition...")
+- Reformule et synthétise les éléments cliniques du compte-rendu fourni — ne réinvente rien qui n'y figure pas
+- Sois concis : un courrier médical fait rarement plus d'une page
+- Termine toujours par une question ou une demande claire au confrère (avis, prise en charge, examen complémentaire)`,
+
+    user: (compteRenduJson, motifAdressage) => `Voici un compte-rendu de consultation déjà structuré (les tokens d'anonymisation type [PATIENT_001] doivent être conservés tels quels) :
+
+<compte_rendu>
+${JSON.stringify(compteRenduJson)}
+</compte_rendu>
+
+${motifAdressage ? `Motif précis de l'adressage indiqué par le médecin : ${motifAdressage}` : "Aucun motif d'adressage précis n'a été indiqué — déduis-le du diagnostic et des orientations mentionnées dans le compte-rendu."}
+
+Génère un courrier de correspondance médicale structuré en JSON :
+
+{
+  "destinataire_suggere": "type de spécialiste à qui adresser ce courrier, déduit du contexte (ex: 'Confrère cardiologue')",
+  "objet": "objet du courrier en une ligne",
+  "corps_lettre": "le texte complet du courrier, formaté en paragraphes séparés par des retours à la ligne (\\n\\n), du 'Cher confrère,' jusqu'à la formule de politesse finale incluse",
+  "question_posee": "la question ou demande précise adressée au confrère, isolée pour référence rapide"
+}`
   }
 };
 
