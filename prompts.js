@@ -193,7 +193,85 @@ Génère un courrier de correspondance médicale structuré en JSON :
   "corps_lettre": "le texte complet du courrier, formaté en paragraphes séparés par des retours à la ligne (\\n\\n), du 'Cher confrère,' jusqu'à la formule de politesse finale incluse",
   "question_posee": "la question ou demande précise adressée au confrère, isolée pour référence rapide"
 }`
+  },
+
+  /**
+   * Résumé intelligent du dossier patient — synthétise la chronologie
+   * des événements médicaux d'un patient en un récit cohérent, avec
+   * mise en évidence des liens et évolutions notables. C'est la base
+   * de la "timeline intelligente" : ne réinterprète jamais cliniquement,
+   * se contente d'organiser et de relier ce qui est déjà écrit.
+   */
+  resume_dossier: {
+    system: BASE_SYSTEM + `
+
+Tu es spécialisé dans la synthèse de dossiers médicaux longitudinaux. Ton rôle est d'aider un médecin à retrouver rapidement le fil de l'histoire d'un patient, PAS de poser un jugement clinique nouveau.
+
+Règles supplémentaires pour ce format :
+- Ne jamais émettre de diagnostic ou d'hypothèse médicale qui ne figure pas déjà explicitement dans les événements fournis
+- Relie les événements entre eux uniquement sur la base de faits explicites (ex: "le traitement introduit en mars a précédé l'amélioration notée en juin"), jamais d'inférence médicale
+- Reste factuel et chronologique, à la manière d'un historique de dossier, pas d'un avis médical
+- Si un suivi semble prévu ou en attente d'après les événements, signale-le simplement comme un rappel administratif`,
+
+    user: (eventsTimelineText) => `Voici la chronologie des événements médicaux d'un patient (données déjà anonymisées) :
+
+<chronologie>
+${eventsTimelineText}
+</chronologie>
+
+Génère une synthèse structurée en JSON :
+
+{
+  "synthese_narrative": "2 à 4 phrases racontant le fil de l'histoire médicale de ce patient, en langage clair, à la manière d'un résumé de dossier",
+  "liens_identifies": [
+    "lien factuel explicite entre deux événements, ex: 'Le traitement anti-hypertenseur introduit en 2025 précède l'amélioration tensionnelle notée en 2026'"
+  ],
+  "points_attention": [
+    "élément qui mérite l'attention du médecin à la prochaine consultation, basé uniquement sur les événements fournis"
+  ],
+  "suivi_en_attente": "rappel factuel si un suivi ou contrôle semble prévu d'après les événements, sinon null"
+}`
   }
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM };
+/**
+ * Résumé intelligent de dossier patient — synthèse narrative de la
+ * chronologie d'un patient (Phase 2 : "Intelligence").
+ *
+ * IMPORTANT : ce prompt est volontairement cadré comme un outil
+ * d'ORGANISATION et de LECTURE RAPIDE du dossier, pas d'interprétation
+ * clinique. Il ne doit jamais suggérer de diagnostic, seulement
+ * synthétiser et relier des faits déjà présents dans le dossier.
+ */
+const DOSSIER_SUMMARY_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu es spécialisé dans la synthèse de dossiers médicaux pour aider un médecin à reprendre rapidement le fil du suivi d'un patient.
+
+Règles supplémentaires, absolues pour ce mode :
+- Tu NE DIAGNOSTIQUES JAMAIS. Tu résumes et relies des faits déjà présents dans les événements fournis.
+- N'invente aucune information, aucune date, aucun événement qui ne figure pas explicitement dans les données fournies.
+- Reste factuel et chronologique. Les liens que tu identifies entre événements doivent être des observations temporelles ou administratives (ex: "un traitement a été introduit après tel diagnostic"), jamais des inférences cliniques nouvelles.
+- Si une évolution te semble notable (amélioration, aggravation, absence de suivi), formule-le comme une observation à vérifier par le médecin, jamais comme une conclusion.
+- Ce résumé est un outil d'aide à la lecture du dossier, pas un avis médical.`,
+
+  user: (eventsJson) => `Voici la chronologie complète des événements médicaux enregistrés pour ce patient (du plus récent au plus ancien), avec les tokens d'anonymisation à conserver tels quels :
+
+<evenements>
+${JSON.stringify(eventsJson)}
+</evenements>
+
+Génère une synthèse de dossier structurée en JSON :
+
+{
+  "synthese_generale": "un paragraphe de 3-5 phrases qui raconte le parcours du patient à travers ces événements, en langage clair",
+  "points_cles": ["3-6 faits marquants du dossier, un par ligne, factuels"],
+  "evolution_notable": "une observation sur une évolution temporelle si elle ressort clairement des données (sinon : 'Aucune évolution notable identifiable sur la période disponible')",
+  "a_verifier_par_le_medecin": ["1-3 points que le médecin pourrait vouloir vérifier ou approfondir, formulés comme des questions ouvertes, jamais comme des conclusions"],
+  "timeline_annotee": [
+    {"date": "date de l'événement", "titre": "titre de l'événement", "note": "courte note contextuelle de 1 phrase reliant cet événement au reste du dossier, ou vide si rien à signaler"}
+  ]
+}`
+};
+
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT };

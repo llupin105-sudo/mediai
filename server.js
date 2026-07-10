@@ -25,7 +25,7 @@ const multer = require('multer');
 const Stripe = require('stripe');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT } = require('./prompts');
 const db = require('./db');
 
 const upload = multer({
@@ -565,6 +565,88 @@ app.get('/api/patients/:id', requireAuth, async (req, res) => {
     return res.json({ patient, events });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur lors de la récupération du dossier patient' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/patients/:id/resume-intelligent
+// Génère une synthèse narrative de la chronologie du patient — la
+// fondation de la "timeline intelligente". Le nom du patient est
+// remplacé par un token avant tout envoi à Claude, comme pour les
+// transcriptions de consultation.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/patients/:id/resume-intelligent', requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const events = await db.listEventsByPatient(patient.id);
+    if (!events || events.length === 0) {
+      return res.status(400).json({ error: 'Aucun événement à synthétiser pour ce patient' });
+    }
+
+    // Construit une chronologie textuelle compacte plutôt que d'envoyer
+    // le JSON complet de chaque événement (plus lisible et moins de tokens)
+    const lines = events
+      .slice()
+      .reverse() // ordre chronologique croissant pour un récit cohérent
+      .map(e => {
+        const date = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        if (e.type === 'consultation') {
+          return `${date} — Consultation : ${e.data.resume_1_ligne || e.title}`;
+        }
+        if (e.type === 'ordonnance') {
+          const meds = (e.data.prescriptions || []).map(p => p.medicament).filter(Boolean).join(', ');
+          return `${date} — Ordonnance : ${meds || e.title}`;
+        }
+        if (e.type === 'courrier') {
+          return `${date} — Courrier à ${e.data.destinataire_suggere || 'un confrère'} : ${e.data.objet || e.title}`;
+        }
+        return `${date} — ${e.type} : ${e.title}`;
+      });
+
+    // Anonymise le nom du patient (correspondance exacte, pas de regex,
+    // puisqu'on connaît la valeur précise à remplacer)
+    let timelineText = lines.join('\n');
+    if (patient.prenom) timelineText = timelineText.split(patient.prenom).join('[PATIENT_PRENOM]');
+    if (patient.nom) timelineText = timelineText.split(patient.nom).join('[PATIENT_NOM]');
+
+    const prompt = DOSSIER_SUMMARY_PROMPT;
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 1500,
+        system: prompt.system,
+        messages: [{ role: 'user', content: prompt.user(timelineText) }]
+      })
+    });
+
+    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
+
+    const claudeData = await claudeRes.json();
+    const textBlocks = claudeData.content.filter(block => block.type === 'text');
+    const rawText = textBlocks.map(block => block.text).join('\n');
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Réponse Claude invalide');
+    let resumeData = JSON.parse(jsonMatch[0]);
+
+    // Restaure le vrai nom du patient dans la réponse pour un rendu naturel
+    let resumeStr = JSON.stringify(resumeData);
+    if (patient.prenom) resumeStr = resumeStr.split('[PATIENT_PRENOM]').join(patient.prenom);
+    if (patient.nom) resumeStr = resumeStr.split('[PATIENT_NOM]').join(patient.nom);
+    resumeData = JSON.parse(resumeStr);
+
+    return res.json({ success: true, resume: resumeData });
+  } catch (err) {
+    console.error('[ERROR resume-intelligent]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la génération du résumé' });
   }
 });
 
