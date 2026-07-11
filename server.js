@@ -25,7 +25,7 @@ const multer = require('multer');
 const Stripe = require('stripe');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT } = require('./prompts');
 const db = require('./db');
 
 const upload = multer({
@@ -463,6 +463,56 @@ app.post('/api/courrier/generate', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[ERROR courrier]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la génération du courrier' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/ordonnance/check-interactions
+// Filet de vigilance sur les interactions médicamenteuses — n'est PAS
+// un outil de décision clinique, voir prompts.js pour le cadrage complet.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/ordonnance/check-interactions', requireAuth, async (req, res) => {
+  const { medicaments } = req.body;
+  if (!Array.isArray(medicaments) || medicaments.length < 2) {
+    return res.json({
+      success: true,
+      resultat: {
+        interactions_detectees: [],
+        aucune_interaction_majeure_connue: true,
+        rappel: 'Au moins deux médicaments sont nécessaires pour une vérification croisée.',
+      }
+    });
+  }
+
+  try {
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 800,
+        system: INTERACTION_CHECK_PROMPT.system,
+        messages: [{ role: 'user', content: INTERACTION_CHECK_PROMPT.user(medicaments) }]
+      })
+    });
+
+    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
+
+    const claudeData = await claudeRes.json();
+    const textBlocks = claudeData.content.filter(block => block.type === 'text');
+    const rawText = textBlocks.map(block => block.text).join('\n');
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Réponse Claude invalide');
+    const resultat = JSON.parse(jsonMatch[0]);
+
+    return res.json({ success: true, resultat });
+  } catch (err) {
+    console.error('[ERROR check-interactions]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la vérification des interactions' });
   }
 });
 
