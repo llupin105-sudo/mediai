@@ -308,4 +308,36 @@ Retourne un JSON avec les événements pertinents, classés par pertinence :
 }`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT };
+/**
+ * Préparation intelligente d'une consultation — briefing express avant
+ * de commencer à dicter, pour se remettre dans le contexte du patient
+ * en quelques secondes plutôt que de relire tout le dossier.
+ */
+const PRE_CONSULT_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu es spécialisé dans la préparation express de consultation pour un médecin qui va recevoir un patient dans quelques instants.
+
+Règles supplémentaires pour ce mode :
+- Sois très concis : le médecin doit pouvoir lire ce briefing en 10-15 secondes
+- Ne diagnostique jamais, ne suggère jamais de conduite à tenir — rappelle uniquement des faits déjà présents dans le dossier
+- Priorise ce qui est le plus récent et le plus susceptible d'être pertinent pour une nouvelle consultation
+- Si un traitement ou suivi semble arriver à échéance (ex: fin d'arrêt de travail, contrôle prévu), signale-le comme un simple rappel factuel`,
+
+  user: (eventsJson) => `Voici la chronologie des événements de ce patient (le plus récent en premier) :
+
+<evenements>
+${JSON.stringify(eventsJson)}
+</evenements>
+
+Génère un briefing de préparation de consultation en JSON :
+
+{
+  "dernier_rdv": "date et résumé en une phrase du dernier événement enregistré, ou 'Aucun antécédent enregistré' si le dossier est vide",
+  "traitements_en_cours": ["liste des traitements actuellement en cours d'après la dernière ordonnance ou consultation, vide si aucun"],
+  "points_a_retenir": ["2-4 points factuels importants à garder en tête avant de commencer la consultation"],
+  "rappel_suivi": "un rappel factuel si un suivi semble arriver à échéance (ex: fin d'arrêt de travail, contrôle prévu à telle date), ou chaîne vide sinon"
+}`
+};
+
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT };
