@@ -25,7 +25,7 @@ const multer = require('multer');
 const Stripe = require('stripe');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT } = require('./prompts');
 const db = require('./db');
 
 const upload = multer({
@@ -647,6 +647,83 @@ app.get('/api/patients/:id/resume-intelligent', requireAuth, async (req, res) =>
   } catch (err) {
     console.error('[ERROR resume-intelligent]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la génération du résumé' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/patients/:id/search?q=...
+// Recherche sémantique dans les événements d'un patient.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/patients/:id/search', requireAuth, async (req, res) => {
+  const query = (req.query.q || '').trim();
+  if (!query || query.length < 2) {
+    return res.status(400).json({ error: 'Requête de recherche trop courte' });
+  }
+
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const events = await db.listEventsByPatient(patient.id);
+    if (!events || events.length === 0) {
+      return res.json({ success: true, resultats: [] });
+    }
+
+    // Construit une liste compacte des événements avec leur contenu résumé
+    const eventsForSearch = events.map(e => {
+      let contenu = e.title;
+      if (e.type === 'consultation') contenu = e.data.resume_1_ligne || e.title;
+      if (e.type === 'ordonnance') contenu = (e.data.prescriptions || []).map(p => p.medicament).join(', ');
+      if (e.type === 'courrier') contenu = e.data.objet || e.title;
+      return {
+        id: e.id,
+        type: e.type,
+        date: new Date(e.event_date).toLocaleDateString('fr-FR'),
+        contenu,
+      };
+    });
+
+    // Anonymise le nom du patient dans le contenu textuel avant envoi
+    let payloadStr = JSON.stringify(eventsForSearch);
+    if (patient.prenom) payloadStr = payloadStr.split(patient.prenom).join('[PATIENT]');
+    if (patient.nom) payloadStr = payloadStr.split(patient.nom).join('[PATIENT]');
+    const anonymizedEvents = JSON.parse(payloadStr);
+
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 1000,
+        system: SEARCH_PROMPT.system,
+        messages: [{ role: 'user', content: SEARCH_PROMPT.user(anonymizedEvents, query) }]
+      })
+    });
+
+    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
+
+    const claudeData = await claudeRes.json();
+    const textBlocks = claudeData.content.filter(block => block.type === 'text');
+    const rawText = textBlocks.map(block => block.text).join('\n');
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Réponse Claude invalide');
+    const searchResult = JSON.parse(jsonMatch[0]);
+
+    // Recompose les résultats avec les événements complets (déjà en clair en base)
+    const eventsById = new Map(events.map(e => [e.id, e]));
+    const resultats = (searchResult.resultats || [])
+      .filter(r => eventsById.has(r.id))
+      .map(r => ({ event: eventsById.get(r.id), raison: r.raison }));
+
+    return res.json({ success: true, resultats });
+  } catch (err) {
+    console.error('[ERROR search]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la recherche' });
   }
 });
 

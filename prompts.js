@@ -274,4 +274,38 @@ Génère une synthèse de dossier structurée en JSON :
 }`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT };
+/**
+ * Recherche intelligente dans le dossier patient — trouve les
+ * événements pertinents par rapport à une requête en langage naturel,
+ * même si le mot exact n'apparaît pas littéralement (recherche
+ * sémantique plutôt qu'un simple Ctrl+F).
+ */
+const SEARCH_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu es spécialisé dans la recherche au sein d'un dossier médical. Tu reçois une liste d'événements (consultations, ordonnances, courriers) et une requête de recherche du médecin.
+
+Règles supplémentaires pour ce mode :
+- Identifie les événements RÉELLEMENT pertinents par rapport à la requête, y compris si le mot exact n'apparaît pas mais que le sens correspond (ex: requête "genou" doit trouver un événement mentionnant "gonarthrose" ou "douleur articulaire du membre inférieur droit")
+- Ne retourne QUE les événements listés en entrée — n'invente jamais d'identifiant
+- Si aucun événement ne correspond, retourne une liste vide plutôt que de forcer une correspondance
+- Classe les résultats du plus au moins pertinent`,
+
+  user: (eventsJson, query) => `Voici la liste des événements du dossier patient (avec leur identifiant, à conserver tel quel) :
+
+<evenements>
+${JSON.stringify(eventsJson)}
+</evenements>
+
+Requête de recherche du médecin : "${query}"
+
+Retourne un JSON avec les événements pertinents, classés par pertinence :
+
+{
+  "resultats": [
+    {"id": "identifiant exact de l'événement", "raison": "courte explication en une phrase de pourquoi cet événement correspond à la recherche"}
+  ]
+}`
+};
+
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT };
