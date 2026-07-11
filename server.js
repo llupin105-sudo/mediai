@@ -25,7 +25,7 @@ const multer = require('multer');
 const Stripe = require('stripe');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT } = require('./prompts');
 const db = require('./db');
 
 const upload = multer({
@@ -463,6 +463,139 @@ app.post('/api/courrier/generate', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[ERROR courrier]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la génération du courrier' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/analyse-labo/generate
+// Structure un compte-rendu de laboratoire DÉJÀ RÉDIGÉ par le
+// biologiste dans la chronologie du patient. Extraction administrative
+// uniquement — voir prompts.js pour le cadrage complet.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/analyse-labo/generate', requireAuth, async (req, res) => {
+  const { patientId, texteRapport } = req.body;
+  const user = req.medecin;
+
+  if (!patientId || !texteRapport || texteRapport.trim().length < 20) {
+    return res.status(400).json({ error: 'Patient ou texte du rapport manquant' });
+  }
+
+  try {
+    const patient = await db.getPatientById(patientId);
+    if (!patient || patient.medecin_id !== user.id) {
+      return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
+    }
+
+    const { anonymized, tokenMap } = anonymize(texteRapport);
+
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 1200,
+        system: LAB_STRUCTURING_PROMPT.system,
+        messages: [{ role: 'user', content: LAB_STRUCTURING_PROMPT.user(anonymized) }]
+      })
+    });
+
+    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
+
+    const claudeData = await claudeRes.json();
+    const textBlocks = claudeData.content.filter(block => block.type === 'text');
+    const rawText = textBlocks.map(block => block.text).join('\n');
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Réponse Claude invalide');
+    const labTokenise = JSON.parse(jsonMatch[0]);
+
+    const restored = deanonymize(JSON.stringify(labTokenise), tokenMap);
+    const labFinal = JSON.parse(restored);
+
+    const id = crypto.randomUUID();
+    const nbResultats = (labFinal.resultats || []).length;
+    await db.createMedicalEvent({
+      id,
+      patientId,
+      medecinId: user.id,
+      type: 'analyse_labo',
+      title: `Résultats de laboratoire — ${nbResultats} paramètre(s)`,
+      data: labFinal,
+    });
+
+    return res.json({ success: true, id, resultat: labFinal });
+  } catch (err) {
+    console.error('[ERROR analyse-labo]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la structuration du rapport de laboratoire' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/imagerie/generate
+// Structure un compte-rendu d'imagerie DÉJÀ RÉDIGÉ par le radiologue
+// dans la chronologie du patient. Extraction administrative
+// uniquement — aucune analyse d'image, voir prompts.js.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/imagerie/generate', requireAuth, async (req, res) => {
+  const { patientId, texteRapport } = req.body;
+  const user = req.medecin;
+
+  if (!patientId || !texteRapport || texteRapport.trim().length < 20) {
+    return res.status(400).json({ error: 'Patient ou texte du rapport manquant' });
+  }
+
+  try {
+    const patient = await db.getPatientById(patientId);
+    if (!patient || patient.medecin_id !== user.id) {
+      return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
+    }
+
+    const { anonymized, tokenMap } = anonymize(texteRapport);
+
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 1200,
+        system: IMAGING_STRUCTURING_PROMPT.system,
+        messages: [{ role: 'user', content: IMAGING_STRUCTURING_PROMPT.user(anonymized) }]
+      })
+    });
+
+    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
+
+    const claudeData = await claudeRes.json();
+    const textBlocks = claudeData.content.filter(block => block.type === 'text');
+    const rawText = textBlocks.map(block => block.text).join('\n');
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Réponse Claude invalide');
+    const imagerieTokenise = JSON.parse(jsonMatch[0]);
+
+    const restored = deanonymize(JSON.stringify(imagerieTokenise), tokenMap);
+    const imagerieFinal = JSON.parse(restored);
+
+    const id = crypto.randomUUID();
+    await db.createMedicalEvent({
+      id,
+      patientId,
+      medecinId: user.id,
+      type: 'imagerie',
+      title: `${imagerieFinal.type_examen || 'Imagerie'} — ${imagerieFinal.zone_examinee || ''}`.trim(),
+      data: imagerieFinal,
+    });
+
+    return res.json({ success: true, id, resultat: imagerieFinal });
+  } catch (err) {
+    console.error('[ERROR imagerie]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de la structuration du compte-rendu d'imagerie" });
   }
 });
 

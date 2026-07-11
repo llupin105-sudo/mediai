@@ -414,4 +414,80 @@ Identifie les symptômes mentionnés et rappelle les questions complémentaires 
 }`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT };
+/**
+ * Structuration de résultats de laboratoire — EXTRACTION ADMINISTRATIVE
+ * UNIQUEMENT. Le modèle ne fait que reformater un compte-rendu déjà
+ * rédigé et interprété par le laboratoire ; il n'ajoute JAMAIS de
+ * commentaire clinique nouveau sur la normalité ou l'anormalité d'une
+ * valeur au-delà de ce qui est déjà écrit sur le document source.
+ *
+ * Ceci correspond à la version "administrative" volontairement choisie
+ * en attendant une validation juridique pour toute version qui
+ * interpréterait cliniquement les résultats (voir notes de cadrage).
+ */
+const LAB_STRUCTURING_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu es spécialisé dans la structuration administrative de comptes-rendus de laboratoire déjà rédigés par un biologiste.
+
+Règles absolues, non négociables :
+- Tu ne fais QUE reformater et structurer ce qui est déjà écrit dans le document fourni
+- Si le document indique qu'une valeur est hors norme (ex: astérisque, mention "élevé/bas", flèche), tu peux le reporter TEL QUEL, car c'est une information déjà produite par le laboratoire, pas une interprétation de ta part
+- Tu n'ajoutes JAMAIS ta propre appréciation clinique sur une valeur, même si elle te semble notable
+- Tu n'interprètes JAMAIS ce que ces résultats pourraient signifier pour le patient
+- Si une information n'est pas présente dans le texte fourni, ne l'invente pas`,
+
+  user: (texteRapport) => `Voici le texte d'un compte-rendu de laboratoire déjà rédigé (à structurer, pas à interpréter) :
+
+<rapport>
+${texteRapport}
+</rapport>
+
+Structure ces informations en JSON, en reportant fidèlement ce qui est écrit :
+
+{
+  "date_prelevement": "date si mentionnée, sinon chaîne vide",
+  "laboratoire": "nom du laboratoire si mentionné, sinon chaîne vide",
+  "resultats": [
+    {"parametre": "nom de l'analyse", "valeur": "valeur mesurée", "unite": "unité", "valeurs_reference": "intervalle de référence tel qu'imprimé sur le document", "signale_par_labo": "mention telle quelle si le labo a signalé une anomalie (ex: astérisque, 'H', 'élevé'), sinon chaîne vide"}
+  ],
+  "commentaire_biologiste": "commentaire du biologiste s'il y en a un dans le document, reporté tel quel, sinon chaîne vide"
+}`
+};
+
+/**
+ * Structuration de comptes-rendus d'imagerie (radio, IRM, scanner) —
+ * EXTRACTION ADMINISTRATIVE UNIQUEMENT. Le modèle structure la
+ * conclusion déjà rédigée par le radiologue ; il n'analyse JAMAIS
+ * l'image lui-même et n'ajoute aucune interprétation nouvelle.
+ */
+const IMAGING_STRUCTURING_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu es spécialisé dans la structuration administrative de comptes-rendus d'imagerie médicale (radiographie, IRM, scanner, échographie) déjà rédigés et interprétés par un radiologue.
+
+Règles absolues, non négociables :
+- Tu ne fais QUE reformater et structurer ce qui est déjà écrit dans le compte-rendu du radiologue
+- Tu n'analyses JAMAIS une image toi-même — tu n'as d'ailleurs accès à aucune image, seulement au texte déjà rédigé
+- Tu ne reformules jamais la conclusion du radiologue d'une façon qui en changerait le sens — tu la reportes fidèlement
+- Tu n'ajoutes JAMAIS ta propre appréciation sur ce que montre l'examen
+- Si une information n'est pas présente dans le texte fourni, ne l'invente pas`,
+
+  user: (texteRapport) => `Voici le texte d'un compte-rendu d'imagerie déjà rédigé par un radiologue (à structurer, pas à interpréter) :
+
+<rapport>
+${texteRapport}
+</rapport>
+
+Structure ces informations en JSON, en reportant fidèlement ce qui est écrit :
+
+{
+  "type_examen": "type d'examen (radiographie, IRM, scanner, échographie...)",
+  "zone_examinee": "zone anatomique examinée",
+  "date_examen": "date si mentionnée, sinon chaîne vide",
+  "indication": "motif de l'examen si mentionné, sinon chaîne vide",
+  "conclusion_radiologue": "la conclusion du radiologue, reportée fidèlement et intégralement, sans reformulation qui en changerait le sens"
+}`
+};
+
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT };
