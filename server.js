@@ -91,6 +91,28 @@ async function requireAuth(req, res, next) {
   }
 }
 
+// ── Authentification patient — distincte de celle du médecin ──────
+// Le token porte type:'patient' + patientId, jamais un email de médecin.
+// Un patient ne peut, par construction, accéder qu'à SA PROPRE fiche.
+async function requirePatientAuth(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Authentification requise' });
+  }
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    if (payload.type !== 'patient' || !payload.patientId) {
+      return res.status(401).json({ error: 'Jeton invalide pour cet espace' });
+    }
+    const patient = await db.getPatientById(payload.patientId);
+    if (!patient) return res.status(401).json({ error: 'Patient introuvable' });
+    req.patient = patient;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Session invalide ou expirée' });
+  }
+}
+
 function publicUser(user) {
   return {
     email: user.email,
@@ -1034,6 +1056,111 @@ app.put('/api/patients/:id/notes', requireAuth, async (req, res) => {
     return res.json({ success: true, patient: updated });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur lors de la mise à jour des notes' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/patients/:id/activate-portal  (côté médecin)
+// Génère un identifiant + mot de passe temporaire pour CE dossier
+// précis, que le médecin communique lui-même au patient (pas d'envoi
+// d'email automatique pour l'instant).
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/patients/:id/activate-portal', requireAuth, async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Email du patient invalide' });
+  }
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const existing = await db.getPatientByLoginEmail(email.trim().toLowerCase());
+    if (existing && existing.id !== patient.id) {
+      return res.status(409).json({ error: 'Cet email est déjà utilisé pour un autre accès patient' });
+    }
+
+    // Mot de passe temporaire lisible, à communiquer par le médecin
+    const tempPassword = Math.random().toString(36).slice(2, 6) + '-' + Math.random().toString(36).slice(2, 6);
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    await db.activatePatientPortal(patient.id, email.trim().toLowerCase(), passwordHash);
+
+    return res.json({
+      success: true,
+      loginEmail: email.trim().toLowerCase(),
+      temporaryPassword: tempPassword,
+      warning: "Ce mot de passe temporaire ne sera plus jamais affiché — communiquez-le au patient maintenant.",
+    });
+  } catch (err) {
+    console.error('[ERROR activate-portal]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de l'activation de l'accès patient" });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/patient-auth/login  (espace patient — public)
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/patient-auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  const normalizedEmail = (email || '').trim().toLowerCase();
+
+  try {
+    const patient = await db.getPatientByLoginEmail(normalizedEmail);
+    if (!patient || !patient.login_password_hash) {
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    }
+    const valid = await bcrypt.compare(password || '', patient.login_password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    }
+
+    const token = jwt.sign({ type: 'patient', patientId: patient.id }, JWT_SECRET, { expiresIn: '30d' });
+    return res.json({
+      token,
+      patient: { id: patient.id, nom: patient.nom, prenom: patient.prenom, dateNaissance: patient.date_naissance },
+    });
+  } catch (err) {
+    console.error('[ERROR patient login]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la connexion' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/patient/me  (espace patient)
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/patient/me', requirePatientAuth, async (req, res) => {
+  try {
+    const medecin = await db.pool.query('SELECT profile_nom, profile_cabinet, profile_specialite FROM users WHERE id = $1', [req.patient.medecin_id]);
+    const m = medecin.rows[0] || {};
+    return res.json({
+      patient: {
+        id: req.patient.id,
+        nom: req.patient.nom,
+        prenom: req.patient.prenom,
+        dateNaissance: req.patient.date_naissance,
+      },
+      medecin: {
+        nom: m.profile_nom || '',
+        cabinet: m.profile_cabinet || '',
+        specialite: m.profile_specialite || '',
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la récupération du profil' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/patient/timeline  (espace patient)
+// Renvoie la chronologie du patient connecté — jamais celle d'un autre.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/patient/timeline', requirePatientAuth, async (req, res) => {
+  try {
+    const events = await db.listEventsByPatient(req.patient.id);
+    return res.json({ events });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la récupération de la chronologie' });
   }
 });
 

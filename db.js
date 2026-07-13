@@ -80,10 +80,11 @@ async function initDb() {
   `);
 
   // ── Fiche patient ────────────────────────────────────────────────
-  // Note : en Phase 1, le patient est géré par le médecin (pas de compte
-  // patient autonome). La colonne medecin_id représente le praticien
-  // "propriétaire" de la fiche. La Phase 4 introduira un vrai compte
-  // patient indépendant, relié à cette même table.
+  // La fiche reste créée et possédée par le médecin (medecin_id).
+  // Phase 2.2 : le médecin peut "activer l'accès patient" pour une
+  // fiche précise — le patient reçoit alors un identifiant/mot de
+  // passe propre à CE dossier (pas encore un compte unique valable
+  // chez plusieurs médecins, ce sera un chantier ultérieur).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS patients (
       id UUID PRIMARY KEY,
@@ -95,6 +96,12 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+
+  // Accès portail patient — ALTER sûr, n'affecte pas les fiches existantes
+  await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS login_email TEXT;`);
+  await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS login_password_hash TEXT;`);
+  await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS portal_activated_at TIMESTAMPTZ;`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_patients_login_email ON patients(login_email) WHERE login_email IS NOT NULL;`);
 
   // ── Événements médicaux ──────────────────────────────────────────
   // Table générique : un événement peut être une consultation, une
@@ -281,6 +288,22 @@ async function updatePatientNotes(id, notes) {
   return result.rows[0];
 }
 
+// ── Portail patient (Phase 2.2) ─────────────────────────────────────
+
+async function activatePatientPortal(patientId, loginEmail, passwordHash) {
+  const result = await pool.query(
+    `UPDATE patients SET login_email = $1, login_password_hash = $2, portal_activated_at = now()
+     WHERE id = $3 RETURNING *`,
+    [loginEmail, passwordHash, patientId]
+  );
+  return result.rows[0];
+}
+
+async function getPatientByLoginEmail(email) {
+  const result = await pool.query(`SELECT * FROM patients WHERE login_email = $1`, [email]);
+  return result.rows[0] || null;
+}
+
 // ── Événements médicaux (consultations, ordonnances, courriers...) ─
 
 async function createMedicalEvent({ id, patientId, medecinId, type, title, data, tokensUsed }) {
@@ -337,6 +360,8 @@ module.exports = {
   listPatientsByMedecin,
   getPatientById,
   updatePatientNotes,
+  activatePatientPortal,
+  getPatientByLoginEmail,
   createMedicalEvent,
   listEventsByPatient,
   getMedicalEventById,
