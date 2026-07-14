@@ -176,7 +176,7 @@ function publicUser(user) {
   return {
     email: user.email,
     isPro: user.isPro,
-    freeUsageCount: user.freeUsageCount,
+    freeUsageCount: effectiveFreeUsage(user),
     profile: user.profile,
     preferences: user.preferences,
   };
@@ -221,12 +221,24 @@ async function callClaude({ system, user, maxTokens }) {
   return { json, tokensUsed };
 }
 
+// Mois courant au format 'YYYY-MM' (UTC), clé du quota mensuel.
+function currentMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+// Consommation gratuite EFFECTIVE du mois en cours : si le mois stocké
+// pour l'utilisateur n'est pas le mois courant, le quota est considéré
+// remis à zéro (remise à zéro paresseuse, cohérente avec incrementFreeUsage).
+function effectiveFreeUsage(user) {
+  return user.freeUsageMonth === currentMonth() ? user.freeUsageCount : 0;
+}
+
 // ── Quota gratuit partagé sur toutes les fonctions IA ──────────────
-// Middleware : bloque un compte non-Pro qui a épuisé son quota AVANT
-// tout appel IA coûteux. À placer après requireAuth.
+// Middleware : bloque un compte non-Pro qui a épuisé son quota du mois
+// AVANT tout appel IA coûteux. À placer après requireAuth.
 function enforceAiQuota(req, res, next) {
   const user = req.medecin;
-  if (!user.isPro && user.freeUsageCount >= FREE_LIMIT) {
+  if (!user.isPro && effectiveFreeUsage(user) >= FREE_LIMIT) {
     return res.status(402).json({ error: 'Quota gratuit atteint', upgradeRequired: true, limit: FREE_LIMIT });
   }
   next();
@@ -482,7 +494,7 @@ app.post('/api/transcription/analyze', aiLimiter, requireAuth, enforceAiQuota, a
       },
       account: {
         isPro: updatedUser.isPro,
-        freeUsageCount: updatedUser.freeUsageCount,
+        freeUsageCount: effectiveFreeUsage(updatedUser),
         freeLimit: FREE_LIMIT,
       },
     });
@@ -1257,7 +1269,7 @@ app.get('/health', async (req, res) => {
   }
   res.json({
     status: 'ok',
-    version: '2.0.0',
+    version: '2.1.0',
     hds_compliant: true,
     anonymization: 'active',
     database: dbStatus,

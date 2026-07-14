@@ -68,6 +68,11 @@ async function initDb() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_specialite TEXT DEFAULT '';`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_presentation TEXT DEFAULT '';`);
 
+  // Mois de rattachement du quota gratuit (format 'YYYY-MM'), pour une
+  // remise à zéro mensuelle paresseuse : quand le mois courant diffère de
+  // celui stocké, le compteur repart de zéro au prochain usage.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS free_usage_month TEXT DEFAULT '';`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS compte_rendus (
       id UUID PRIMARY KEY,
@@ -150,6 +155,7 @@ function rowToUser(row) {
     authProvider: row.auth_provider || 'password',
     isPro: row.is_pro,
     freeUsageCount: row.free_usage_count,
+    freeUsageMonth: row.free_usage_month || '',
     stripeCustomerId: row.stripe_customer_id,
     profile: {
       nom: row.profile_nom || '',
@@ -212,10 +218,17 @@ async function updateUserPreferences(email, { defaultSpecialite, instructions })
   return rowToUser(result.rows[0]);
 }
 
+// Incrémente le quota gratuit avec remise à zéro mensuelle paresseuse :
+// si le mois stocké correspond au mois courant on incrémente, sinon on
+// repart de 1 et on met à jour le mois. Aucune tâche planifiée nécessaire.
 async function incrementFreeUsage(email) {
+  const month = new Date().toISOString().slice(0, 7); // 'YYYY-MM' (UTC)
   const result = await pool.query(
-    `UPDATE users SET free_usage_count = free_usage_count + 1 WHERE email = $1 RETURNING *`,
-    [email]
+    `UPDATE users SET
+       free_usage_count = CASE WHEN free_usage_month = $2 THEN free_usage_count + 1 ELSE 1 END,
+       free_usage_month = $2
+     WHERE email = $1 RETURNING *`,
+    [email, month]
   );
   return rowToUser(result.rows[0]);
 }
