@@ -241,6 +241,15 @@ async function setUserPro(email, { isPro, stripeCustomerId }) {
   return rowToUser(result.rows[0]);
 }
 
+// Retrouve un utilisateur par son identifiant client Stripe — indispensable
+// pour traiter les événements webhook d'abonnement (updated/deleted), qui ne
+// portent que le customer id, pas l'email.
+async function getUserByStripeCustomerId(customerId) {
+  if (!customerId) return null;
+  const result = await pool.query(`SELECT * FROM users WHERE stripe_customer_id = $1`, [customerId]);
+  return rowToUser(result.rows[0]);
+}
+
 // ── Comptes-rendus ────────────────────────────────────────────────
 
 async function saveCompteRendu({ id, medecinId, specialite, compteRendu, tokensUsed }) {
@@ -366,6 +375,7 @@ module.exports = {
   updateUserPreferences,
   incrementFreeUsage,
   setUserPro,
+  getUserByStripeCustomerId,
   saveCompteRendu,
   getCompteRenduById,
   listCompteRendusByMedecin,

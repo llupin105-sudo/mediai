@@ -13,6 +13,7 @@
  *   GET  /api/compterendu/:id         - Récupère un compte-rendu sauvegardé
  *   POST /api/create-checkout-session - Démarre un paiement Stripe
  *   GET  /api/verify-session          - Vérifie un paiement Stripe
+ *   POST /api/stripe/webhook          - Cycle d'abonnement Stripe (activation + rétrogradation)
  *   GET  /health                      - Health check
  */
 
@@ -74,7 +75,13 @@ const app = express();
 // que req.ip reflète l'IP réelle du client (journalisation + rate limiting).
 app.set('trust proxy', 1);
 
-app.use(express.json({ limit: '10mb' }));
+// On conserve le corps brut (req.rawBody) pour les requêtes JSON : Stripe
+// exige les octets exacts, non re-sérialisés, pour vérifier la signature
+// du webhook.
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => { req.rawBody = buf; },
+}));
 
 // ── Limiteurs de débit ─────────────────────────────────────────────
 // Store en mémoire (suffisant pour une instance unique sur Render ;
@@ -84,7 +91,7 @@ const globalLimiter = rateLimit({
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === '/health' || req.method === 'OPTIONS',
+  skip: (req) => req.path === '/health' || req.path === '/api/stripe/webhook' || req.method === 'OPTIONS',
   message: { error: 'Trop de requêtes, réessayez dans quelques minutes.' },
 });
 
@@ -1204,6 +1211,75 @@ app.get('/api/verify-session', requireAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
+// POST /api/stripe/webhook  (appelé par Stripe, pas par le frontend)
+// Source de vérité du cycle d'abonnement : active le Pro de façon fiable
+// (même si l'utilisateur ne revient pas sur le site) et le RÉTROGRADE en
+// cas d'annulation ou d'impayé. Signé — corps brut requis (req.rawBody).
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/stripe/webhook', async (req, res) => {
+  if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return res.status(500).json({ error: 'Webhook Stripe non configuré côté serveur' });
+  }
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.rawBody,
+      req.headers['stripe-signature'],
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('[STRIPE WEBHOOK] Signature invalide :', err.message);
+    return res.status(400).json({ error: 'Signature invalide' });
+  }
+
+  try {
+    switch (event.type) {
+      // Paiement initial validé → activation fiable du Pro
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        const email = (session.customer_email || session.customer_details?.email || '').trim().toLowerCase();
+        if (email) {
+          await db.setUserPro(email, { isPro: true, stripeCustomerId: session.customer });
+        }
+        break;
+      }
+
+      // Changement de statut d'abonnement → Pro seulement si actif/essai
+      case 'customer.subscription.updated': {
+        const sub = event.data.object;
+        const user = await db.getUserByStripeCustomerId(sub.customer);
+        if (user) {
+          const active = sub.status === 'active' || sub.status === 'trialing';
+          await db.setUserPro(user.email, { isPro: active, stripeCustomerId: sub.customer });
+        }
+        break;
+      }
+
+      // Abonnement résilié/terminé → rétrogradation
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object;
+        const user = await db.getUserByStripeCustomerId(sub.customer);
+        if (user) {
+          await db.setUserPro(user.email, { isPro: false, stripeCustomerId: sub.customer });
+        }
+        break;
+      }
+
+      default:
+        // Événements non gérés : on accuse réception sans rien faire.
+        break;
+    }
+
+    return res.json({ received: true });
+  } catch (err) {
+    // On renvoie 500 pour que Stripe re-tente la livraison plus tard.
+    console.error('[STRIPE WEBHOOK] Erreur de traitement', event.type, err.message);
+    return res.status(500).json({ error: 'Erreur de traitement du webhook' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
 // POST /api/send-report-email
 // Envoie le compte-rendu (PDF généré côté navigateur) par email via Resend
 // ────────────────────────────────────────────────────────────────────
@@ -1269,7 +1345,7 @@ app.get('/health', async (req, res) => {
   }
   res.json({
     status: 'ok',
-    version: '2.1.0',
+    version: '2.2.0',
     hds_compliant: true,
     anonymization: 'active',
     database: dbStatus,
