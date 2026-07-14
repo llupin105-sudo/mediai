@@ -23,6 +23,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const Stripe = require('stripe');
+const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
 const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT } = require('./prompts');
@@ -35,7 +36,27 @@ const upload = multer({
 
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-a-changer-en-production';
+// ── Secret JWT ─────────────────────────────────────────────────────
+// Le secret sert à signer ET vérifier tous les jetons d'authentification.
+// S'il n'est pas défini en production, n'importe qui connaissant la valeur
+// par défaut pourrait forger un jeton et usurper un compte médecin : on
+// refuse donc de démarrer plutôt que de tourner avec un secret public.
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('ERREUR CRITIQUE - JWT_SECRET non défini en production. Arrêt du serveur pour éviter des jetons forgeables. Définissez la variable d\'environnement JWT_SECRET.');
+    process.exit(1);
+  }
+  console.warn('[SÉCURITÉ] JWT_SECRET absent — utilisation d\'un secret de développement. NE JAMAIS utiliser en production.');
+  return 'dev-secret-a-changer-en-production';
+})();
+
+// ── Modèle Claude ──────────────────────────────────────────────────
+// Centralisé et surchargeable par variable d'environnement pour pouvoir
+// changer de modèle sans redéploiement de code. Sonnet 4.6 est le modèle
+// « scribe » de référence (bon rapport qualité/coût, tarif aligné sur le
+// calcul de coût utilisé plus bas).
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6';
+
 const FREE_LIMIT = 3;
 
 // ── DEBUG : vérifie la clé au démarrage du serveur ─────────────────
@@ -48,7 +69,42 @@ console.log('DEBUG - DATABASE_URL détectée :', process.env.DATABASE_URL ? 'oui
 console.log('═══════════════════════════════════════');
 
 const app = express();
+
+// Derrière le proxy de Render (TLS terminé en amont) : indispensable pour
+// que req.ip reflète l'IP réelle du client (journalisation + rate limiting).
+app.set('trust proxy', 1);
+
 app.use(express.json({ limit: '10mb' }));
+
+// ── Limiteurs de débit ─────────────────────────────────────────────
+// Store en mémoire (suffisant pour une instance unique sur Render ;
+// prévoir un store Redis en cas de montée en charge horizontale).
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/health' || req.method === 'OPTIONS',
+  message: { error: 'Trop de requêtes, réessayez dans quelques minutes.' },
+});
+
+// Anti brute-force sur l'authentification.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, réessayez dans quelques minutes.' },
+});
+
+// Protège les endpoints IA, qui sont coûteux (appels Claude/Whisper).
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes IA en peu de temps, patientez un instant.' },
+});
 
 // ── CORS ────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
@@ -58,6 +114,9 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
+
+// Limiteur global appliqué à toutes les routes (hors /health et OPTIONS).
+app.use(globalLimiter);
 
 // ── Middleware de journalisation HDS (écrit maintenant en base) ────
 app.use((req, res, next) => {
@@ -126,7 +185,7 @@ function publicUser(user) {
 // ────────────────────────────────────────────────────────────────────
 // POST /api/auth/signup
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password || password.length < 8) {
     return res.status(400).json({ error: 'Email invalide ou mot de passe trop court (8 caractères minimum)' });
@@ -153,7 +212,7 @@ app.post('/api/auth/signup', async (req, res) => {
 // ────────────────────────────────────────────────────────────────────
 // POST /api/auth/login
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = (email || '').trim().toLowerCase();
 
@@ -175,7 +234,7 @@ app.post('/api/auth/login', async (req, res) => {
 // POST /api/auth/google
 // Corps : { credential: <ID token renvoyé par Google Identity Services> }
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/auth/google', async (req, res) => {
+app.post('/api/auth/google', authLimiter, async (req, res) => {
   if (!googleClient) {
     return res.status(500).json({ error: 'Connexion Google non configurée côté serveur' });
   }
@@ -259,7 +318,7 @@ app.put('/api/auth/preferences', requireAuth, async (req, res) => {
 // ────────────────────────────────────────────────────────────────────
 // POST /api/audio/transcribe
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/audio/transcribe', requireAuth, upload.single('audio'), async (req, res) => {
+app.post('/api/audio/transcribe', aiLimiter, requireAuth, upload.single('audio'), async (req, res) => {
   if (!process.env.OPENAI_API_KEY) {
     return res.status(500).json({ error: 'Transcription audio non configurée côté serveur' });
   }
@@ -296,7 +355,7 @@ app.post('/api/audio/transcribe', requireAuth, upload.single('audio'), async (re
 // ────────────────────────────────────────────────────────────────────
 // POST /api/transcription/analyze
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
+app.post('/api/transcription/analyze', aiLimiter, requireAuth, async (req, res) => {
   const { transcription, specialite = 'generaliste', patientId } = req.body;
   const user = req.medecin;
 
@@ -336,7 +395,7 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 4000,
         system: prompt.system + customInstructions,
         messages: [{ role: 'user', content: prompt.user(anonymized) }]
@@ -408,7 +467,7 @@ app.post('/api/transcription/analyze', requireAuth, async (req, res) => {
 // consultation existant, via Claude, et l'enregistre comme nouvel
 // événement rattaché au même patient.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/courrier/generate', requireAuth, async (req, res) => {
+app.post('/api/courrier/generate', aiLimiter, requireAuth, async (req, res) => {
   const { patientId, eventId, motifAdressage } = req.body;
   const user = req.medecin;
 
@@ -441,7 +500,7 @@ app.post('/api/courrier/generate', requireAuth, async (req, res) => {
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 2000,
         system: prompt.system,
         messages: [{ role: 'user', content: prompt.user(anonymizedJson, motifAdressage) }]
@@ -494,7 +553,7 @@ app.post('/api/courrier/generate', requireAuth, async (req, res) => {
 // biologiste dans la chronologie du patient. Extraction administrative
 // uniquement — voir prompts.js pour le cadrage complet.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/analyse-labo/generate', requireAuth, async (req, res) => {
+app.post('/api/analyse-labo/generate', aiLimiter, requireAuth, async (req, res) => {
   const { patientId, texteRapport } = req.body;
   const user = req.medecin;
 
@@ -518,7 +577,7 @@ app.post('/api/analyse-labo/generate', requireAuth, async (req, res) => {
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 1200,
         system: LAB_STRUCTURING_PROMPT.system,
         messages: [{ role: 'user', content: LAB_STRUCTURING_PROMPT.user(anonymized) }]
@@ -561,7 +620,7 @@ app.post('/api/analyse-labo/generate', requireAuth, async (req, res) => {
 // dans la chronologie du patient. Extraction administrative
 // uniquement — aucune analyse d'image, voir prompts.js.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/imagerie/generate', requireAuth, async (req, res) => {
+app.post('/api/imagerie/generate', aiLimiter, requireAuth, async (req, res) => {
   const { patientId, texteRapport } = req.body;
   const user = req.medecin;
 
@@ -585,7 +644,7 @@ app.post('/api/imagerie/generate', requireAuth, async (req, res) => {
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 1200,
         system: IMAGING_STRUCTURING_PROMPT.system,
         messages: [{ role: 'user', content: IMAGING_STRUCTURING_PROMPT.user(anonymized) }]
@@ -627,7 +686,7 @@ app.post('/api/imagerie/generate', requireAuth, async (req, res) => {
 // AIDE À L'EXHAUSTIVITÉ, jamais à l'orientation diagnostique.
 // Voir prompts.js pour le cadrage complet.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/symptomes/questions', requireAuth, async (req, res) => {
+app.post('/api/symptomes/questions', aiLimiter, requireAuth, async (req, res) => {
   const { transcription } = req.body;
   if (!transcription || transcription.trim().length < 20) {
     return res.status(400).json({ error: 'Texte trop court pour identifier des symptômes' });
@@ -645,7 +704,7 @@ app.post('/api/symptomes/questions', requireAuth, async (req, res) => {
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 800,
         system: SYMPTOM_QUESTIONS_PROMPT.system,
         messages: [{ role: 'user', content: SYMPTOM_QUESTIONS_PROMPT.user(anonymized) }]
@@ -673,7 +732,7 @@ app.post('/api/symptomes/questions', requireAuth, async (req, res) => {
 // Filet de vigilance sur les interactions médicamenteuses — n'est PAS
 // un outil de décision clinique, voir prompts.js pour le cadrage complet.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/ordonnance/check-interactions', requireAuth, async (req, res) => {
+app.post('/api/ordonnance/check-interactions', aiLimiter, requireAuth, async (req, res) => {
   const { medicaments } = req.body;
   if (!Array.isArray(medicaments) || medicaments.length < 2) {
     return res.json({
@@ -695,7 +754,7 @@ app.post('/api/ordonnance/check-interactions', requireAuth, async (req, res) => 
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 800,
         system: INTERACTION_CHECK_PROMPT.system,
         messages: [{ role: 'user', content: INTERACTION_CHECK_PROMPT.user(medicaments) }]
@@ -827,7 +886,7 @@ app.get('/api/patients/:id', requireAuth, async (req, res) => {
 // remplacé par un token avant tout envoi à Claude, comme pour les
 // transcriptions de consultation.
 // ────────────────────────────────────────────────────────────────────
-app.get('/api/patients/:id/resume-intelligent', requireAuth, async (req, res) => {
+app.get('/api/patients/:id/resume-intelligent', aiLimiter, requireAuth, async (req, res) => {
   try {
     const patient = await db.getPatientById(req.params.id);
     if (!patient || patient.medecin_id !== req.medecin.id) {
@@ -873,7 +932,7 @@ app.get('/api/patients/:id/resume-intelligent', requireAuth, async (req, res) =>
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 1500,
         system: prompt.system,
         messages: [{ role: 'user', content: prompt.user(timelineText) }]
@@ -906,7 +965,7 @@ app.get('/api/patients/:id/resume-intelligent', requireAuth, async (req, res) =>
 // GET /api/patients/:id/preparation
 // Briefing express avant de commencer une nouvelle consultation.
 // ────────────────────────────────────────────────────────────────────
-app.get('/api/patients/:id/preparation', requireAuth, async (req, res) => {
+app.get('/api/patients/:id/preparation', aiLimiter, requireAuth, async (req, res) => {
   try {
     const patient = await db.getPatientById(req.params.id);
     if (!patient || patient.medecin_id !== req.medecin.id) {
@@ -946,7 +1005,7 @@ app.get('/api/patients/:id/preparation', requireAuth, async (req, res) => {
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 800,
         system: PRE_CONSULT_PROMPT.system,
         messages: [{ role: 'user', content: PRE_CONSULT_PROMPT.user(anonymizedEvents) }]
@@ -973,7 +1032,7 @@ app.get('/api/patients/:id/preparation', requireAuth, async (req, res) => {
 // GET /api/patients/:id/search?q=...
 // Recherche sémantique dans les événements d'un patient.
 // ────────────────────────────────────────────────────────────────────
-app.get('/api/patients/:id/search', requireAuth, async (req, res) => {
+app.get('/api/patients/:id/search', aiLimiter, requireAuth, async (req, res) => {
   const query = (req.query.q || '').trim();
   if (!query || query.length < 2) {
     return res.status(400).json({ error: 'Requête de recherche trop courte' });
@@ -1017,7 +1076,7 @@ app.get('/api/patients/:id/search', requireAuth, async (req, res) => {
         'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: CLAUDE_MODEL,
         max_tokens: 1000,
         system: SEARCH_PROMPT.system,
         messages: [{ role: 'user', content: SEARCH_PROMPT.user(anonymizedEvents, query) }]
@@ -1101,7 +1160,7 @@ app.post('/api/patients/:id/activate-portal', requireAuth, async (req, res) => {
 // ────────────────────────────────────────────────────────────────────
 // POST /api/patient-auth/login  (espace patient — public)
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/patient-auth/login', async (req, res) => {
+app.post('/api/patient-auth/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = (email || '').trim().toLowerCase();
 
