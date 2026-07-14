@@ -182,6 +182,65 @@ function publicUser(user) {
   };
 }
 
+// ── Appel Claude factorisé ─────────────────────────────────────────
+// Un seul point d'entrée pour les 9 appels au modèle : centralise le
+// modèle, les en-têtes, la gestion d'erreur et l'extraction du JSON.
+// Renvoie le JSON parsé (encore tokenisé si l'entrée l'était) + le
+// nombre de tokens consommés. Le caller se charge de la dé-anonymisation
+// s'il dispose d'une tokenMap.
+async function callClaude({ system, user, maxTokens }) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+      'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: user }],
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Claude API error: ${res.status}`);
+
+  const data = await res.json();
+  const rawText = (data.content || [])
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('\n');
+  if (!rawText) throw new Error("Claude n'a renvoyé aucun texte exploitable");
+
+  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Réponse Claude invalide');
+  const json = JSON.parse(jsonMatch[0]);
+
+  const tokensUsed = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
+  return { json, tokensUsed };
+}
+
+// ── Quota gratuit partagé sur toutes les fonctions IA ──────────────
+// Middleware : bloque un compte non-Pro qui a épuisé son quota AVANT
+// tout appel IA coûteux. À placer après requireAuth.
+function enforceAiQuota(req, res, next) {
+  const user = req.medecin;
+  if (!user.isPro && user.freeUsageCount >= FREE_LIMIT) {
+    return res.status(402).json({ error: 'Quota gratuit atteint', upgradeRequired: true, limit: FREE_LIMIT });
+  }
+  next();
+}
+
+// À appeler UNIQUEMENT après un appel IA réellement effectué (jamais sur
+// une sortie anticipée sans appel modèle), pour décompter un crédit.
+async function consumeAiCredit(user) {
+  if (!user.isPro) {
+    return db.incrementFreeUsage(user.email);
+  }
+  return user;
+}
+
 // ────────────────────────────────────────────────────────────────────
 // POST /api/auth/signup
 // ────────────────────────────────────────────────────────────────────
@@ -318,7 +377,7 @@ app.put('/api/auth/preferences', requireAuth, async (req, res) => {
 // ────────────────────────────────────────────────────────────────────
 // POST /api/audio/transcribe
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/audio/transcribe', aiLimiter, requireAuth, upload.single('audio'), async (req, res) => {
+app.post('/api/audio/transcribe', aiLimiter, requireAuth, enforceAiQuota, upload.single('audio'), async (req, res) => {
   if (!process.env.OPENAI_API_KEY) {
     return res.status(500).json({ error: 'Transcription audio non configurée côté serveur' });
   }
@@ -345,6 +404,7 @@ app.post('/api/audio/transcribe', aiLimiter, requireAuth, upload.single('audio')
     }
 
     const data = await whisperRes.json();
+    await consumeAiCredit(req.medecin);
     return res.json({ success: true, text: data.text || '' });
   } catch (err) {
     console.error('[ERROR] transcription audio', req.requestId, err.message);
@@ -355,13 +415,10 @@ app.post('/api/audio/transcribe', aiLimiter, requireAuth, upload.single('audio')
 // ────────────────────────────────────────────────────────────────────
 // POST /api/transcription/analyze
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/transcription/analyze', aiLimiter, requireAuth, async (req, res) => {
+app.post('/api/transcription/analyze', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   const { transcription, specialite = 'generaliste', patientId } = req.body;
   const user = req.medecin;
 
-  if (!user.isPro && user.freeUsageCount >= FREE_LIMIT) {
-    return res.status(402).json({ error: 'Quota gratuit atteint', upgradeRequired: true, limit: FREE_LIMIT });
-  }
   if (!patientId) {
     return res.status(400).json({ error: 'Sélectionnez un patient avant de générer un compte-rendu' });
   }
@@ -382,47 +439,25 @@ app.post('/api/transcription/analyze', aiLimiter, requireAuth, async (req, res) 
     // 1. Anonymisation
     const { anonymized, tokenMap, stats: anonStats } = anonymize(transcription);
 
-    // 2. Appel API Claude
+    // 2. Appel API Claude (factorisé)
     const prompt = PROMPTS[specialite];
     const customInstructions = user.preferences?.instructions
       ? `\n\nPréférences personnelles de ce médecin à respecter en priorité (sans jamais contredire les règles ci-dessus) :\n${user.preferences.instructions}`
       : '';
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 4000,
-        system: prompt.system + customInstructions,
-        messages: [{ role: 'user', content: prompt.user(anonymized) }]
-      })
+    const { json: compteRenduTokenise, tokensUsed } = await callClaude({
+      system: prompt.system + customInstructions,
+      user: prompt.user(anonymized),
+      maxTokens: 4000,
     });
 
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    if (!rawText) throw new Error("Claude n'a renvoyé aucun texte exploitable");
-
-    // 3. Parse JSON
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    const compteRenduTokenise = JSON.parse(jsonMatch[0]);
-
-    // 4. Dé-anonymisation
+    // 3. Dé-anonymisation
     const restored = deanonymize(JSON.stringify(compteRenduTokenise), tokenMap);
     const compteRenduFinal = JSON.parse(restored);
 
-    // 5. Sauvegarde comme événement médical, rattaché au patient
+    // 4. Sauvegarde comme événement médical, rattaché au patient
     // (structure générique qui accueillera aussi les ordonnances et
     // courriers, et servira de base à la chronologie intelligente)
     const id = crypto.randomUUID();
-    const tokensUsed = (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0);
     await db.createMedicalEvent({
       id,
       patientId,
@@ -433,11 +468,8 @@ app.post('/api/transcription/analyze', aiLimiter, requireAuth, async (req, res) 
       tokensUsed,
     });
 
-    // 6. Incrémente le quota gratuit en base, si applicable
-    let updatedUser = user;
-    if (!user.isPro) {
-      updatedUser = await db.incrementFreeUsage(user.email);
-    }
+    // 5. Décompte un crédit du quota gratuit partagé, si applicable
+    const updatedUser = await consumeAiCredit(user);
 
     return res.json({
       success: true,
@@ -467,7 +499,7 @@ app.post('/api/transcription/analyze', aiLimiter, requireAuth, async (req, res) 
 // consultation existant, via Claude, et l'enregistre comme nouvel
 // événement rattaché au même patient.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/courrier/generate', aiLimiter, requireAuth, async (req, res) => {
+app.post('/api/courrier/generate', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   const { patientId, eventId, motifAdressage } = req.body;
   const user = req.medecin;
 
@@ -492,29 +524,11 @@ app.post('/api/courrier/generate', aiLimiter, requireAuth, async (req, res) => {
     const anonymizedJson = JSON.parse(anonymized);
 
     const prompt = PROMPTS.courrier;
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 2000,
-        system: prompt.system,
-        messages: [{ role: 'user', content: prompt.user(anonymizedJson, motifAdressage) }]
-      })
+    const { json: courrierTokenise, tokensUsed } = await callClaude({
+      system: prompt.system,
+      user: prompt.user(anonymizedJson, motifAdressage),
+      maxTokens: 2000,
     });
-
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    const courrierTokenise = JSON.parse(jsonMatch[0]);
 
     const restored = deanonymize(JSON.stringify(courrierTokenise), tokenMap);
     const courrierFinal = JSON.parse(restored);
@@ -529,7 +543,6 @@ app.post('/api/courrier/generate', aiLimiter, requireAuth, async (req, res) => {
     courrierFinal.date = new Date().toISOString();
 
     const id = crypto.randomUUID();
-    const tokensUsed = (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0);
     await db.createMedicalEvent({
       id,
       patientId,
@@ -540,6 +553,7 @@ app.post('/api/courrier/generate', aiLimiter, requireAuth, async (req, res) => {
       tokensUsed,
     });
 
+    await consumeAiCredit(user);
     return res.json({ success: true, id, courrier: courrierFinal });
   } catch (err) {
     console.error('[ERROR courrier]', req.requestId, err.message);
@@ -553,7 +567,7 @@ app.post('/api/courrier/generate', aiLimiter, requireAuth, async (req, res) => {
 // biologiste dans la chronologie du patient. Extraction administrative
 // uniquement — voir prompts.js pour le cadrage complet.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/analyse-labo/generate', aiLimiter, requireAuth, async (req, res) => {
+app.post('/api/analyse-labo/generate', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   const { patientId, texteRapport } = req.body;
   const user = req.medecin;
 
@@ -569,29 +583,11 @@ app.post('/api/analyse-labo/generate', aiLimiter, requireAuth, async (req, res) 
 
     const { anonymized, tokenMap } = anonymize(texteRapport);
 
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 1200,
-        system: LAB_STRUCTURING_PROMPT.system,
-        messages: [{ role: 'user', content: LAB_STRUCTURING_PROMPT.user(anonymized) }]
-      })
+    const { json: labTokenise, tokensUsed } = await callClaude({
+      system: LAB_STRUCTURING_PROMPT.system,
+      user: LAB_STRUCTURING_PROMPT.user(anonymized),
+      maxTokens: 1200,
     });
-
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    const labTokenise = JSON.parse(jsonMatch[0]);
 
     const restored = deanonymize(JSON.stringify(labTokenise), tokenMap);
     const labFinal = JSON.parse(restored);
@@ -605,8 +601,10 @@ app.post('/api/analyse-labo/generate', aiLimiter, requireAuth, async (req, res) 
       type: 'analyse_labo',
       title: `Résultats de laboratoire — ${nbResultats} paramètre(s)`,
       data: labFinal,
+      tokensUsed,
     });
 
+    await consumeAiCredit(user);
     return res.json({ success: true, id, resultat: labFinal });
   } catch (err) {
     console.error('[ERROR analyse-labo]', req.requestId, err.message);
@@ -620,7 +618,7 @@ app.post('/api/analyse-labo/generate', aiLimiter, requireAuth, async (req, res) 
 // dans la chronologie du patient. Extraction administrative
 // uniquement — aucune analyse d'image, voir prompts.js.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/imagerie/generate', aiLimiter, requireAuth, async (req, res) => {
+app.post('/api/imagerie/generate', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   const { patientId, texteRapport } = req.body;
   const user = req.medecin;
 
@@ -636,29 +634,11 @@ app.post('/api/imagerie/generate', aiLimiter, requireAuth, async (req, res) => {
 
     const { anonymized, tokenMap } = anonymize(texteRapport);
 
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 1200,
-        system: IMAGING_STRUCTURING_PROMPT.system,
-        messages: [{ role: 'user', content: IMAGING_STRUCTURING_PROMPT.user(anonymized) }]
-      })
+    const { json: imagerieTokenise, tokensUsed } = await callClaude({
+      system: IMAGING_STRUCTURING_PROMPT.system,
+      user: IMAGING_STRUCTURING_PROMPT.user(anonymized),
+      maxTokens: 1200,
     });
-
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    const imagerieTokenise = JSON.parse(jsonMatch[0]);
 
     const restored = deanonymize(JSON.stringify(imagerieTokenise), tokenMap);
     const imagerieFinal = JSON.parse(restored);
@@ -671,8 +651,10 @@ app.post('/api/imagerie/generate', aiLimiter, requireAuth, async (req, res) => {
       type: 'imagerie',
       title: `${imagerieFinal.type_examen || 'Imagerie'} — ${imagerieFinal.zone_examinee || ''}`.trim(),
       data: imagerieFinal,
+      tokensUsed,
     });
 
+    await consumeAiCredit(user);
     return res.json({ success: true, id, resultat: imagerieFinal });
   } catch (err) {
     console.error('[ERROR imagerie]', req.requestId, err.message);
@@ -686,7 +668,7 @@ app.post('/api/imagerie/generate', aiLimiter, requireAuth, async (req, res) => {
 // AIDE À L'EXHAUSTIVITÉ, jamais à l'orientation diagnostique.
 // Voir prompts.js pour le cadrage complet.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/symptomes/questions', aiLimiter, requireAuth, async (req, res) => {
+app.post('/api/symptomes/questions', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   const { transcription } = req.body;
   if (!transcription || transcription.trim().length < 20) {
     return res.status(400).json({ error: 'Texte trop court pour identifier des symptômes' });
@@ -696,30 +678,13 @@ app.post('/api/symptomes/questions', aiLimiter, requireAuth, async (req, res) =>
     // Anonymisation avant envoi, comme pour toute donnée patient
     const { anonymized } = anonymize(transcription);
 
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 800,
-        system: SYMPTOM_QUESTIONS_PROMPT.system,
-        messages: [{ role: 'user', content: SYMPTOM_QUESTIONS_PROMPT.user(anonymized) }]
-      })
+    const { json: resultat } = await callClaude({
+      system: SYMPTOM_QUESTIONS_PROMPT.system,
+      user: SYMPTOM_QUESTIONS_PROMPT.user(anonymized),
+      maxTokens: 800,
     });
 
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    const resultat = JSON.parse(jsonMatch[0]);
-
+    await consumeAiCredit(req.medecin);
     return res.json({ success: true, resultat });
   } catch (err) {
     console.error('[ERROR symptomes-questions]', req.requestId, err.message);
@@ -732,7 +697,7 @@ app.post('/api/symptomes/questions', aiLimiter, requireAuth, async (req, res) =>
 // Filet de vigilance sur les interactions médicamenteuses — n'est PAS
 // un outil de décision clinique, voir prompts.js pour le cadrage complet.
 // ────────────────────────────────────────────────────────────────────
-app.post('/api/ordonnance/check-interactions', aiLimiter, requireAuth, async (req, res) => {
+app.post('/api/ordonnance/check-interactions', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   const { medicaments } = req.body;
   if (!Array.isArray(medicaments) || medicaments.length < 2) {
     return res.json({
@@ -746,30 +711,13 @@ app.post('/api/ordonnance/check-interactions', aiLimiter, requireAuth, async (re
   }
 
   try {
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 800,
-        system: INTERACTION_CHECK_PROMPT.system,
-        messages: [{ role: 'user', content: INTERACTION_CHECK_PROMPT.user(medicaments) }]
-      })
+    const { json: resultat } = await callClaude({
+      system: INTERACTION_CHECK_PROMPT.system,
+      user: INTERACTION_CHECK_PROMPT.user(medicaments),
+      maxTokens: 800,
     });
 
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    const resultat = JSON.parse(jsonMatch[0]);
-
+    await consumeAiCredit(req.medecin);
     return res.json({ success: true, resultat });
   } catch (err) {
     console.error('[ERROR check-interactions]', req.requestId, err.message);
@@ -886,7 +834,7 @@ app.get('/api/patients/:id', requireAuth, async (req, res) => {
 // remplacé par un token avant tout envoi à Claude, comme pour les
 // transcriptions de consultation.
 // ────────────────────────────────────────────────────────────────────
-app.get('/api/patients/:id/resume-intelligent', aiLimiter, requireAuth, async (req, res) => {
+app.get('/api/patients/:id/resume-intelligent', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   try {
     const patient = await db.getPatientById(req.params.id);
     if (!patient || patient.medecin_id !== req.medecin.id) {
@@ -924,29 +872,12 @@ app.get('/api/patients/:id/resume-intelligent', aiLimiter, requireAuth, async (r
     if (patient.nom) timelineText = timelineText.split(patient.nom).join('[PATIENT_NOM]');
 
     const prompt = DOSSIER_SUMMARY_PROMPT;
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 1500,
-        system: prompt.system,
-        messages: [{ role: 'user', content: prompt.user(timelineText) }]
-      })
+    const { json } = await callClaude({
+      system: prompt.system,
+      user: prompt.user(timelineText),
+      maxTokens: 1500,
     });
-
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    let resumeData = JSON.parse(jsonMatch[0]);
+    let resumeData = json;
 
     // Restaure le vrai nom du patient dans la réponse pour un rendu naturel
     let resumeStr = JSON.stringify(resumeData);
@@ -954,6 +885,7 @@ app.get('/api/patients/:id/resume-intelligent', aiLimiter, requireAuth, async (r
     if (patient.nom) resumeStr = resumeStr.split('[PATIENT_NOM]').join(patient.nom);
     resumeData = JSON.parse(resumeStr);
 
+    await consumeAiCredit(req.medecin);
     return res.json({ success: true, resume: resumeData });
   } catch (err) {
     console.error('[ERROR resume-intelligent]', req.requestId, err.message);
@@ -965,7 +897,7 @@ app.get('/api/patients/:id/resume-intelligent', aiLimiter, requireAuth, async (r
 // GET /api/patients/:id/preparation
 // Briefing express avant de commencer une nouvelle consultation.
 // ────────────────────────────────────────────────────────────────────
-app.get('/api/patients/:id/preparation', aiLimiter, requireAuth, async (req, res) => {
+app.get('/api/patients/:id/preparation', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   try {
     const patient = await db.getPatientById(req.params.id);
     if (!patient || patient.medecin_id !== req.medecin.id) {
@@ -997,30 +929,13 @@ app.get('/api/patients/:id/preparation', aiLimiter, requireAuth, async (req, res
     if (patient.nom) payloadStr = payloadStr.split(patient.nom).join('[PATIENT]');
     const anonymizedEvents = JSON.parse(payloadStr);
 
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 800,
-        system: PRE_CONSULT_PROMPT.system,
-        messages: [{ role: 'user', content: PRE_CONSULT_PROMPT.user(anonymizedEvents) }]
-      })
+    const { json: preparation } = await callClaude({
+      system: PRE_CONSULT_PROMPT.system,
+      user: PRE_CONSULT_PROMPT.user(anonymizedEvents),
+      maxTokens: 800,
     });
 
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    const preparation = JSON.parse(jsonMatch[0]);
-
+    await consumeAiCredit(req.medecin);
     return res.json({ success: true, preparation });
   } catch (err) {
     console.error('[ERROR preparation]', req.requestId, err.message);
@@ -1032,7 +947,7 @@ app.get('/api/patients/:id/preparation', aiLimiter, requireAuth, async (req, res
 // GET /api/patients/:id/search?q=...
 // Recherche sémantique dans les événements d'un patient.
 // ────────────────────────────────────────────────────────────────────
-app.get('/api/patients/:id/search', aiLimiter, requireAuth, async (req, res) => {
+app.get('/api/patients/:id/search', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
   const query = (req.query.q || '').trim();
   if (!query || query.length < 2) {
     return res.status(400).json({ error: 'Requête de recherche trop courte' });
@@ -1068,29 +983,11 @@ app.get('/api/patients/:id/search', aiLimiter, requireAuth, async (req, res) => 
     if (patient.nom) payloadStr = payloadStr.split(patient.nom).join('[PATIENT]');
     const anonymizedEvents = JSON.parse(payloadStr);
 
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 1000,
-        system: SEARCH_PROMPT.system,
-        messages: [{ role: 'user', content: SEARCH_PROMPT.user(anonymizedEvents, query) }]
-      })
+    const { json: searchResult } = await callClaude({
+      system: SEARCH_PROMPT.system,
+      user: SEARCH_PROMPT.user(anonymizedEvents, query),
+      maxTokens: 1000,
     });
-
-    if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-
-    const claudeData = await claudeRes.json();
-    const textBlocks = claudeData.content.filter(block => block.type === 'text');
-    const rawText = textBlocks.map(block => block.text).join('\n');
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Réponse Claude invalide');
-    const searchResult = JSON.parse(jsonMatch[0]);
 
     // Recompose les résultats avec les événements complets (déjà en clair en base)
     const eventsById = new Map(events.map(e => [e.id, e]));
@@ -1098,6 +995,7 @@ app.get('/api/patients/:id/search', aiLimiter, requireAuth, async (req, res) => 
       .filter(r => eventsById.has(r.id))
       .map(r => ({ event: eventsById.get(r.id), raison: r.raison }));
 
+    await consumeAiCredit(req.medecin);
     return res.json({ success: true, resultats });
   } catch (err) {
     console.error('[ERROR search]', req.requestId, err.message);
