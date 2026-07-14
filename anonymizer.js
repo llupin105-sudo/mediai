@@ -90,11 +90,28 @@ const PATTERNS = [
   },
 ];
 
-function anonymize(text) {
+// Échappe une chaîne pour l'utiliser littéralement dans une RegExp.
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * @param {string} text
+ * @param {object} [options]
+ * @param {Array<{category: string, value: string}>} [options.knownTerms]
+ *   Termes NOMINATIFS EXACTS connus (nom/prénom du patient concerné, nom du
+ *   médecin) à retirer de façon DÉTERMINISTE avant les motifs regex. C'est
+ *   la seule partie qui offre une vraie certitude : on connaît la valeur
+ *   précise à masquer, on ne « devine » pas.
+ */
+function anonymize(text, options = {}) {
   const tokenMap = new TokenMap();
   let result = text;
   const stats = { replacements: 0, categories: {} };
 
+  // ── 1. Motifs regex (best-effort) ──────────────────────────────────
+  // On tokenise d'abord les structures (email, NIR, tél, adresse…) pour
+  // ne pas les fragmenter avec l'étape suivante.
   for (const pattern of PATTERNS) {
     result = result.replace(pattern.regex, (match, ...groups) => {
       const valueToTokenize = pattern.captureGroup
@@ -112,6 +129,38 @@ function anonymize(text) {
     });
   }
 
+  // ── 2. Termes connus exacts (déterministe) ─────────────────────────
+  // Filet déterministe sur ce que le regex aurait pu manquer : nom/prénom
+  // exacts du patient concerné et nom du médecin (valeurs connues, on ne
+  // devine pas). C'est la seule partie offrant une vraie certitude.
+  for (const { category, value } of (options.knownTerms || [])) {
+    const v = (value || '').trim();
+    if (v.length < 3) continue; // évite de masquer des particules trop courtes
+    const token = tokenMap.getOrCreate(category, v);
+    const re = new RegExp('\\b' + escapeRegExp(v) + '\\b', 'gi');
+    result = result.replace(re, () => {
+      stats.replacements++;
+      stats.categories[category] = (stats.categories[category] || 0) + 1;
+      return token;
+    });
+  }
+
+  // ── 3. Filet de sécurité ───────────────────────────────────────────
+  // Vérifie qu'aucun terme connu (patient/médecin) ne subsiste en clair
+  // dans le texte anonymisé. Ne devrait jamais arriver après l'étape 1 ;
+  // si c'est le cas, on le signale pour investigation (faux négatif
+  // déterministe = bug à corriger).
+  stats.residualKnownTerm = false;
+  for (const { value } of (options.knownTerms || [])) {
+    const v = (value || '').trim();
+    if (v.length < 3) continue;
+    if (new RegExp('\\b' + escapeRegExp(v) + '\\b', 'i').test(result)) {
+      stats.residualKnownTerm = true;
+      console.warn('[ANONYMIZER] Terme connu résiduel non masqué détecté — à investiguer.');
+      break;
+    }
+  }
+
   return { anonymized: result, tokenMap, stats };
 }
 
@@ -119,7 +168,14 @@ function deanonymize(claudeResponse, tokenMap) {
   return tokenMap.restore(claudeResponse);
 }
 
-const test = `Consultation du 15/06/2024 pour Mme Isabelle MARTIN née le 03/04/1978.
+module.exports = { anonymize, deanonymize, TokenMap };
+
+// ── Test manuel ────────────────────────────────────────────────────
+// Ne s'exécute QUE lorsqu'on lance directement `node anonymizer.js`,
+// jamais lors d'un require() (évitait auparavant un console.log et un
+// appel anonymize() à chaque import du module).
+if (require.main === module) {
+  const test = `Consultation du 15/06/2024 pour Mme Isabelle MARTIN née le 03/04/1978.
 NSS : 2 78 04 75 123 456 78. Adressée par Dr. Bernard LEFEBVRE.
 Tel : 06 12 34 56 78. Email : i.martin@gmail.com.
 Douleurs lombaires depuis 3 semaines. HTA sous amlodipine 5mg.
@@ -127,10 +183,16 @@ Lasègue négatif, contracture L4-L5. Pas de déficit neuro.
 Prescription : ibuprofène 400mg x3/j, kiné 10 séances, AT 5 jours.
 Dr. Émile ROUSSEAU — RPPS 10003456789 — 14 rue de la Paix, 75002 Paris`;
 
-const { anonymized, tokenMap, stats } = anonymize(test);
-console.log('TEXTE ANONYMISÉ (envoyé à Claude) :\n' + anonymized);
-console.log('\nStats:', stats);
-console.log('\nTokens (restent sur OVHcloud) :');
-for (const [t, v] of tokenMap.map.entries()) console.log(`  ${t} => "${v}"`);
-
-module.exports = { anonymize, deanonymize, TokenMap };
+  // Simule les termes connus fournis par le serveur (patient + médecin).
+  const { anonymized, tokenMap, stats } = anonymize(test, {
+    knownTerms: [
+      { category: 'PATIENT', value: 'Isabelle' },
+      { category: 'PATIENT', value: 'MARTIN' },
+      { category: 'MEDECIN', value: 'ROUSSEAU' },
+    ],
+  });
+  console.log('TEXTE ANONYMISÉ (envoyé à Claude) :\n' + anonymized);
+  console.log('\nStats:', stats);
+  console.log('\nTokens (restent côté serveur) :');
+  for (const [t, v] of tokenMap.map.entries()) console.log(`  ${t} => "${v}"`);
+}

@@ -260,6 +260,29 @@ async function consumeAiCredit(user) {
   return user;
 }
 
+// Construit la liste des noms EXACTS connus à retirer de façon
+// déterministe avant tout envoi à Claude : nom/prénom du patient concerné
+// (on connaît son identité via patientId) et nom du médecin. Chaque nom
+// composé est éclaté en mots pour attraper aussi les occurrences isolées
+// ("Dupont est revenue" sans civilité).
+function buildKnownTerms(patient, medecin) {
+  const terms = [];
+  const addName = (category, full) => {
+    for (const part of String(full || '').split(/[\s\-]+/)) {
+      const p = part.trim();
+      if (p.length >= 3) terms.push({ category, value: p });
+    }
+  };
+  if (patient) {
+    addName('PATIENT', patient.prenom);
+    addName('PATIENT', patient.nom);
+  }
+  if (medecin && medecin.profile) {
+    addName('MEDECIN', medecin.profile.nom);
+  }
+  return terms;
+}
+
 // ────────────────────────────────────────────────────────────────────
 // POST /api/auth/signup
 // ────────────────────────────────────────────────────────────────────
@@ -455,8 +478,10 @@ app.post('/api/transcription/analyze', aiLimiter, requireAuth, enforceAiQuota, a
       return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
     }
 
-    // 1. Anonymisation
-    const { anonymized, tokenMap, stats: anonStats } = anonymize(transcription);
+    // 1. Anonymisation (regex + retrait déterministe des noms connus)
+    const { anonymized, tokenMap, stats: anonStats } = anonymize(transcription, {
+      knownTerms: buildKnownTerms(patient, user),
+    });
 
     // 2. Appel API Claude (factorisé)
     const prompt = PROMPTS[specialite];
@@ -539,7 +564,9 @@ app.post('/api/courrier/generate', aiLimiter, requireAuth, enforceAiQuota, async
     // Le compte-rendu source est déjà dé-anonymisé en base — on le
     // ré-anonymise avant de le renvoyer à Claude pour générer le courrier.
     const compteRenduStr = JSON.stringify(sourceEvent.data);
-    const { anonymized, tokenMap } = anonymize(compteRenduStr);
+    const { anonymized, tokenMap } = anonymize(compteRenduStr, {
+      knownTerms: buildKnownTerms(patient, user),
+    });
     const anonymizedJson = JSON.parse(anonymized);
 
     const prompt = PROMPTS.courrier;
@@ -600,7 +627,9 @@ app.post('/api/analyse-labo/generate', aiLimiter, requireAuth, enforceAiQuota, a
       return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
     }
 
-    const { anonymized, tokenMap } = anonymize(texteRapport);
+    const { anonymized, tokenMap } = anonymize(texteRapport, {
+      knownTerms: buildKnownTerms(patient, user),
+    });
 
     const { json: labTokenise, tokensUsed } = await callClaude({
       system: LAB_STRUCTURING_PROMPT.system,
@@ -651,7 +680,9 @@ app.post('/api/imagerie/generate', aiLimiter, requireAuth, enforceAiQuota, async
       return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
     }
 
-    const { anonymized, tokenMap } = anonymize(texteRapport);
+    const { anonymized, tokenMap } = anonymize(texteRapport, {
+      knownTerms: buildKnownTerms(patient, user),
+    });
 
     const { json: imagerieTokenise, tokensUsed } = await callClaude({
       system: IMAGING_STRUCTURING_PROMPT.system,
@@ -1345,7 +1376,7 @@ app.get('/health', async (req, res) => {
   }
   res.json({
     status: 'ok',
-    version: '2.2.0',
+    version: '2.3.0',
     hds_compliant: true,
     anonymization: 'active',
     database: dbStatus,
