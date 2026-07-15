@@ -1,6 +1,11 @@
 # MediAI — backend containerisé.
-# Image portable : se déploie à l'identique sur Render, Scaleway, OVHcloud,
-# ou tout hôte de conteneurs — clé de la future migration HDS sans réécriture.
+# Image portable : se déploie à l'identique sur Scaleway, OVHcloud, ou tout
+# hôte de conteneurs — clé de la future migration HDS sans réécriture.
+#
+# Volontairement hors de la racine du repo pour ne PAS interférer avec le
+# déploiement natif Node de Render. Build depuis la racine du repo (le
+# .dockerignore y reste, c'est le contexte) :
+#   docker build -f docker/Dockerfile -t mediai-backend .
 
 FROM node:20-alpine
 
