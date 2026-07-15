@@ -30,6 +30,12 @@ const { anonymize, deanonymize } = require('./anonymizer');
 const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT } = require('./prompts');
 const db = require('./db');
 
+// ── Sous-traitants externes, isolés dans services/ (portabilité) ──────
+// Changer de fournisseur IA / transcription / email = modifier 1 fichier.
+const { callClaude } = require('./services/ia');
+const { transcribeAudio } = require('./services/transcription');
+const { sendReportEmail } = require('./services/email');
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 }, // 25 Mo max, comme la limite de l'API Whisper
@@ -50,13 +56,6 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
   console.warn('[SÉCURITÉ] JWT_SECRET absent — utilisation d\'un secret de développement. NE JAMAIS utiliser en production.');
   return 'dev-secret-a-changer-en-production';
 })();
-
-// ── Modèle Claude ──────────────────────────────────────────────────
-// Centralisé et surchargeable par variable d'environnement pour pouvoir
-// changer de modèle sans redéploiement de code. Sonnet 4.6 est le modèle
-// « scribe » de référence (bon rapport qualité/coût, tarif aligné sur le
-// calcul de coût utilisé plus bas).
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6';
 
 const FREE_LIMIT = 3;
 
@@ -187,45 +186,6 @@ function publicUser(user) {
     profile: user.profile,
     preferences: user.preferences,
   };
-}
-
-// ── Appel Claude factorisé ─────────────────────────────────────────
-// Un seul point d'entrée pour les 9 appels au modèle : centralise le
-// modèle, les en-têtes, la gestion d'erreur et l'extraction du JSON.
-// Renvoie le JSON parsé (encore tokenisé si l'entrée l'était) + le
-// nombre de tokens consommés. Le caller se charge de la dé-anonymisation
-// s'il dispose d'une tokenMap.
-async function callClaude({ system, user, maxTokens }) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
-      'x-api-key': process.env.ANTHROPIC_API_KEY || 'YOUR_KEY_HERE',
-    },
-    body: JSON.stringify({
-      model: CLAUDE_MODEL,
-      max_tokens: maxTokens,
-      system,
-      messages: [{ role: 'user', content: user }],
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Claude API error: ${res.status}`);
-
-  const data = await res.json();
-  const rawText = (data.content || [])
-    .filter((block) => block.type === 'text')
-    .map((block) => block.text)
-    .join('\n');
-  if (!rawText) throw new Error("Claude n'a renvoyé aucun texte exploitable");
-
-  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Réponse Claude invalide');
-  const json = JSON.parse(jsonMatch[0]);
-
-  const tokensUsed = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
-  return { json, tokensUsed };
 }
 
 // Mois courant au format 'YYYY-MM' (UTC), clé du quota mensuel.
@@ -420,35 +380,22 @@ app.put('/api/auth/preferences', requireAuth, async (req, res) => {
 // POST /api/audio/transcribe
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/audio/transcribe', aiLimiter, requireAuth, enforceAiQuota, upload.single('audio'), async (req, res) => {
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ error: 'Transcription audio non configurée côté serveur' });
-  }
   if (!req.file) {
     return res.status(400).json({ error: 'Aucun fichier audio reçu' });
   }
 
   try {
-    const form = new FormData();
-    form.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), req.file.originalname || 'audio.webm');
-    form.append('model', 'whisper-1');
-    form.append('language', 'fr');
-
-    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: form,
+    const text = await transcribeAudio({
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
+      filename: req.file.originalname,
     });
-
-    if (!whisperRes.ok) {
-      const errText = await whisperRes.text();
-      console.error('[WHISPER ERROR]', whisperRes.status, errText);
-      throw new Error(`Whisper API error: ${whisperRes.status}`);
-    }
-
-    const data = await whisperRes.json();
     await consumeAiCredit(req.medecin);
-    return res.json({ success: true, text: data.text || '' });
+    return res.json({ success: true, text });
   } catch (err) {
+    if (err.code === 'NOT_CONFIGURED') {
+      return res.status(500).json({ error: 'Transcription audio non configurée côté serveur' });
+    }
     console.error('[ERROR] transcription audio', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la transcription audio' });
   }
@@ -1315,49 +1262,23 @@ app.post('/api/stripe/webhook', async (req, res) => {
 // Envoie le compte-rendu (PDF généré côté navigateur) par email via Resend
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/send-report-email', requireAuth, async (req, res) => {
-  if (!process.env.RESEND_API_KEY) {
-    return res.status(500).json({ error: "Envoi d'email non configuré côté serveur" });
-  }
   const { recipientEmail, pdfBase64, resume } = req.body;
   if (!recipientEmail || !pdfBase64) {
     return res.status(400).json({ error: 'Destinataire ou fichier manquant' });
   }
 
-  const senderName = req.medecin.profile?.nom || req.medecin.email;
-
   try {
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'MédiIA <onboarding@resend.dev>', // adresse de test Resend, sans domaine à vérifier
-        to: [recipientEmail],
-        subject: `Compte-rendu médical — ${resume || 'consultation'}`,
-        html: `
-          <div style="font-family: sans-serif; color: #16211c;">
-            <p>Bonjour,</p>
-            <p>Vous trouverez ci-joint un compte-rendu médical transmis par <strong>${senderName}</strong> via MédiIA.</p>
-            <p style="font-size: 13px; color: #8b968e;">Document confidentiel à caractère médical, soumis au secret médical et au RGPD.</p>
-          </div>
-        `,
-        attachments: [{
-          filename: 'compte-rendu-mediai.pdf',
-          content: pdfBase64,
-        }],
-      }),
+    await sendReportEmail({
+      recipientEmail,
+      pdfBase64,
+      resume,
+      senderName: req.medecin.profile?.nom || req.medecin.email,
     });
-
-    if (!resendRes.ok) {
-      const errText = await resendRes.text();
-      console.error('[RESEND ERROR]', resendRes.status, errText);
-      throw new Error(`Erreur d'envoi (${resendRes.status})`);
-    }
-
     return res.json({ success: true });
   } catch (err) {
+    if (err.code === 'NOT_CONFIGURED') {
+      return res.status(500).json({ error: "Envoi d'email non configuré côté serveur" });
+    }
     console.error('[ERROR] send-report-email', req.requestId, err.message);
     return res.status(500).json({ error: "Impossible d'envoyer l'email pour le moment" });
   }
@@ -1376,7 +1297,7 @@ app.get('/health', async (req, res) => {
   }
   res.json({
     status: 'ok',
-    version: '2.3.0',
+    version: '2.4.0',
     hds_compliant: true,
     anonymization: 'active',
     database: dbStatus,
