@@ -50,7 +50,7 @@
 
 **Phase 5 — MediAI OS (couche d'intelligence patient) — DÉMARRÉE**
 - ✅ **Sprint 1 — Patient Snapshot** : synthèse de fond du dossier en tête de fiche patient. Hybride (traitements/dernière consult déterministes + IA pour narratif/problèmes/vigilance/suivi), cachée dans `patient_synthesis`, régénérée au changement d'événements. Backend (`GET /api/patients/:id/snapshot`) + UI + tests. → [08_AI_SYSTEM.md](08_AI_SYSTEM.md).
-- 🔄 **Sprint 2 — Consultation Cockpit** : le dossier devient un briefing préparé. Increment **2.1 livré** (Hero premium + « Préparer ma consultation » + « Ce qu'il ne faut pas oublier » + évolution + temps gagné ; déterministe instantané + récit IA caché via `briefing_consultation`). Restant : timeline premium, recherche clinique, mode lecture 30 s, comparaison de constantes.
+- 🔄 **Sprint 2 — Consultation Cockpit** : le dossier devient un briefing préparé. **2.1 livré** (Hero premium + « Préparer ma consultation » + « Ce qu'il ne faut pas oublier » + évolution + temps gagné). **2.2 livré** (documents importants auto-remontés, mode « Lecture 30 s », recherche clinique élevée, timeline premium animée — frontend pur). Restant : recherche à réponse directe, comparaison de constantes (poids/tension → évolution de schéma).
 - ⏭️ Sprint 3 — Ambient AI Consultation (dictée → CR/ordonnances/courriers/tâches en un clic) · Sprint 4 — Signaux & alertes · différenciation patient. → [11_ROADMAP.md](11_ROADMAP.md).
 
 Ordre validé pour la suite de la Phase 2 (frontend, en parallèle) :

@@ -34,6 +34,10 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | Hero fiche patient | `renderPatientHero`, `#patientDetailView` |
 | **Patient Snapshot** (Phase 5) | `renderPatientSnapshot`, `fetchPatientSnapshot`, `refreshPatientSnapshot`, `#patientSnapshotCard` — synthèse intelligente / portrait du patient (narratif, problèmes, vigilance, suivi) |
 | **Consultation Cockpit** (Sprint 2) | `renderCockpit`, `fillCockpitBriefing`, `#consultationCockpit`, classes `.ckpt-*` — briefing en tête de dossier : hero premium, « Préparer ma consultation » (récit IA), rappels, évolution, temps gagné. Déterministe instantané + récit caché. Helpers `humanizeElapsed` / `estimateTimeSaved` / `CKPT_TYPE` |
+| **Documents importants** (Sprint 2.2) | `renderKeyDocuments`, `#keyDocuments`, classes `.kd-*` — le plus récent de chaque type remonte automatiquement |
+| **Lecture 30 s** (Sprint 2.2) | `openQuickRead` — vue distillée aux éléments critiques (modale). Bouton dans le hero du Cockpit |
+| **Recherche clinique** (Sprint 2.2) | `runPatientSearch` (sémantique, existant) + `renderSearchExamples` / `runClinicalExample` (exemples cliquables), `#searchExamples`, classes `.search-ex` |
+| **Timeline** | `renderTimeline`, `renderTimelineFilters`, `TL_TYPES`, `#patientTimeline` — frise colorée par type, filtres, animation d'entrée (`tl-anim`) |
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |

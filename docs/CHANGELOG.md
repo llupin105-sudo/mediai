@@ -4,6 +4,21 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Phase 5, Sprint 2 (2.2) : Timeline & recherche clinique — 2026-07-17
+
+Frontend uniquement (`mediai-site`). Aucun changement backend.
+
+### Ajouté
+- **Documents importants** : le plus récent de chaque type (consultation, ordonnance, analyses, imagerie, courrier) remonte automatiquement en tête de la zone chronologie, en accès direct (`renderKeyDocuments`, `#keyDocuments`).
+- **Mode « Lecture 30 s »** : bouton dans le hero du Cockpit ouvrant une vue distillée aux seuls éléments critiques (briefing, à ne pas manquer, traitements, résultats récents, dernière consultation) — `openQuickRead`.
+- **Recherche clinique** élevée : placeholder en langage naturel, validation à `Entrée`, exemples cliquables (« dernière IRM », « prise de sang »…) déclenchant la recherche sémantique existante (`renderSearchExamples`, `runClinicalExample`).
+- **Timeline premium** : animation d'entrée douce façon Linear (`tl-anim` + keyframe `tlItemIn`, respect de `prefers-reduced-motion`), sur la frise déjà colorée par type.
+
+### À venir (2.3 / Sprint 3)
+- Recherche à réponse directe (nécessiterait un endpoint dédié), comparaison de constantes structurées (poids/tension — évolution de schéma), puis Sprint 3 « Ambient AI Consultation ».
+
+---
+
 ## [Non publié] — Phase 5, Sprint 2 (2.1) : Consultation Cockpit — 2026-07-17
 
 Le dossier patient devient un **briefing préparé**. Increment 2.1 : le cœur du Cockpit.
