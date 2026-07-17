@@ -38,6 +38,7 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | **Lecture 30 s** (Sprint 2.2) | `openQuickRead` — vue distillée aux éléments critiques (modale). Bouton dans le hero du Cockpit |
 | **Recherche clinique** (Sprint 2.2) | `runPatientSearch` (sémantique, existant) + `renderSearchExamples` / `runClinicalExample` (exemples cliquables), `#searchExamples`, classes `.search-ex` |
 | **Timeline** | `renderTimeline`, `renderTimelineFilters`, `TL_TYPES`, `#patientTimeline` — frise colorée par type, filtres, animation d'entrée (`tl-anim`) |
+| **Consultation prête** (Sprint 3) | `renderConsultReadyPanel`, `#consultReadyPanel`, classes `.cr-*` — orchestration ambient après le CR : ordonnance/courrier en un clic (réutilise `openOrdonnanceModal`/`openCourrierModal`), suites à donner, constantes |
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |

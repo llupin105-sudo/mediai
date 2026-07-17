@@ -4,6 +4,22 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Phase 5, Sprint 3 (3.1) : Ambient Consultation — orchestration — 2026-07-17
+
+Frontend uniquement (`mediai-site`). Aucun changement backend (tous les endpoints existaient déjà).
+
+### Ajouté
+- **Panneau « Consultation prête »** en tête du compte-rendu généré : transforme la dictée en travail fini. Actions contextuelles **en un clic** (uniquement ce que le CR a réellement produit) : **Créer l'ordonnance** (pré-remplie depuis `plan.prescriptions`), **Rédiger le courrier** (si orientations). Plus une checklist **« Suites à donner »** (suivi + arrêt de travail + orientations) et les **constantes relevées** (`sections.objectif.constantes`). `renderConsultReadyPanel`, `#consultReadyPanel`, classes `.cr-*`.
+- Principe : l'IA propose, le médecin valide (jamais d'auto-génération sans revue) — conforme à la règle « l'IA assiste, ne décide jamais ».
+
+### Découverte utile
+- Les **constantes** (tension, poids…) sont déjà capturées dans chaque consultation (`data.sections.objectif.constantes`) → l'évolution des constantes du Cockpit (point 4) est réalisable **sans changement de schéma** (prochain increment 3.2).
+
+### À venir (3.2 / 3.3)
+- Évolution des constantes dans le Cockpit (mini-graphes) ; tâches de suivi persistantes ; polish du flux d'enregistrement vocal.
+
+---
+
 ## [Non publié] — Phase 5, Sprint 2 (2.2) : Timeline & recherche clinique — 2026-07-17
 
 Frontend uniquement (`mediai-site`). Aucun changement backend.
