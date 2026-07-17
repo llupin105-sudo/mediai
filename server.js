@@ -1436,7 +1436,7 @@ app.get('/health', async (req, res) => {
   }
   res.json({
     status: 'ok',
-    version: '2.5.0',
+    version: '2.6.0',
     // Transparence : l'infra actuelle n'est PAS certifiée HDS. Tant que la
     // migration n'est pas faite, seules des données synthétiques sont
     // autorisées. Voir docs/10_SECURITY.md.

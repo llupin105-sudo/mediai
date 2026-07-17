@@ -505,6 +505,7 @@ Tu rédiges la synthèse de fond d'un dossier patient, affichée en permanence e
 
 Style attendu :
 - La "synthese_narrative" est la pièce maîtresse : 3 à 5 phrases fluides et naturelles qui racontent qui est ce patient sur le plan du suivi (fil conducteur, motifs récurrents, stabilité ou évolutions récentes). Écris comme un médecin parle, pas comme une liste. Exemple de ton : "Monsieur X est suivi pour une hypertension stable depuis plusieurs années. Aucun événement aigu récent n'est identifié. Une surveillance de la tension reste évoquée."
+- Le "briefing_consultation" prépare le médecin à REVOIR ce patient aujourd'hui : 2 à 4 phrases fluides sur ce qui ressort des derniers événements, la stabilité ou les évolutions, ce qui mérite son attention. Ton d'un excellent interne qui aurait préparé la consultation. Exemple : "Depuis la dernière consultation, aucune hospitalisation n'est enregistrée. Les derniers résultats biologiques montrent une amélioration du bilan lipidique. La tension reste légèrement élevée et le traitement paraît stable. Une surveillance du poids est à poursuivre." IMPORTANT : ne mentionne AUCUNE durée chiffrée absolue (mois/jours) — l'application l'affiche elle-même.
 - Privilégie TOUJOURS des phrases complètes aux listes de mots.
 
 Règles absolues pour ce mode :
@@ -529,6 +530,7 @@ Produis une synthèse de fond en JSON strict :
 
 {
   "synthese_narrative": "3 à 5 phrases naturelles et fluides (voir le style attendu), sans aucune conclusion clinique nouvelle",
+  "briefing_consultation": "2 à 4 phrases de préparation de consultation (voir le style attendu), sans durée chiffrée absolue, sans conclusion clinique nouvelle",
   "problemes_actifs": [
     {"libelle": "motif de suivi qui ressort du dossier", "detail": "courte précision factuelle (1 phrase) ou chaîne vide"}
   ],

@@ -32,7 +32,8 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | Liste patients | `renderPatientsList`, `showPatientsListView`, `#patientsListView` |
 | Sélecteur de patient | `renderPatientSelectorBar` |
 | Hero fiche patient | `renderPatientHero`, `#patientDetailView` |
-| **Patient Snapshot** (Phase 5) | `renderPatientSnapshot`, `fetchPatientSnapshot`, `refreshPatientSnapshot`, `#patientSnapshotCard` — synthèse intelligente en tête de fiche (narratif, problèmes, vigilance, suivi) |
+| **Patient Snapshot** (Phase 5) | `renderPatientSnapshot`, `fetchPatientSnapshot`, `refreshPatientSnapshot`, `#patientSnapshotCard` — synthèse intelligente / portrait du patient (narratif, problèmes, vigilance, suivi) |
+| **Consultation Cockpit** (Sprint 2) | `renderCockpit`, `fillCockpitBriefing`, `#consultationCockpit`, classes `.ckpt-*` — briefing en tête de dossier : hero premium, « Préparer ma consultation » (récit IA), rappels, évolution, temps gagné. Déterministe instantané + récit caché. Helpers `humanizeElapsed` / `estimateTimeSaved` / `CKPT_TYPE` |
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |

@@ -4,6 +4,24 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Phase 5, Sprint 2 (2.1) : Consultation Cockpit — 2026-07-17
+
+Le dossier patient devient un **briefing préparé**. Increment 2.1 : le cœur du Cockpit.
+
+### Ajouté
+- **Consultation Cockpit** en tête de la fiche patient : Hero premium (identité + dernière consultation + temps écoulé + motif précédent + badge IA + temps de lecture), **« Préparer ma consultation »** (récit IA fluide), **« Ce qu'il ne faut pas oublier »** (rappels déterministes + suivis/vigilances IA), **« Depuis la dernière consultation »** (évolution déterministe), et une stat discrète **« ≈ N min économisées »**.
+- Backend : champ `briefing_consultation` ajouté à `PATIENT_SNAPSHOT_PROMPT` (récit de préparation, généré et caché avec le Snapshot — **aucun appel LLM supplémentaire**). `/health` → `2.6.0`.
+- Frontend : `renderCockpit` (déterministe, instantané), `fillCockpitBriefing` (récit + rappels depuis la synthèse cachée), helpers `humanizeElapsed` / `estimateTimeSaved`. Rendu par blocs, responsive (grille auto-fit), animation douce.
+
+### Principe
+- Performance perçue : tout le déterministe s'affiche **instantanément** depuis les événements déjà chargés ; seul le récit vient de l'IA (caché).
+- IA responsable : le briefing prépare et attire l'attention, ne diagnostique jamais ; les données médicales restent déterministes.
+
+### À venir (2.2 / 2.3)
+- Timeline premium (façon Linear), recherche clinique élevée, mode « lecture 30 s », comparaison de constantes (poids/tension — nécessite d'enrichir le modèle de données).
+
+---
+
 ## [Non publié] — Phase 5, Sprint 1 : Patient Snapshot — 2026-07-17
 
 Première brique de la couche d'intelligence patient (« MediAI OS »).

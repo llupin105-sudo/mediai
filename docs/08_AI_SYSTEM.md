@@ -82,7 +82,7 @@ Synthèse de fond du dossier, affichée en tête de la fiche patient. **Conçue 
 | Partie | Source | Contenu |
 |---|---|---|
 | **Déterministe** (jamais l'IA) | code, à partir des vrais événements | `traitements_en_cours` (dernière ordonnance), `derniere_consultation`, compteurs |
-| **Intelligente** (IA) | `PATIENT_SNAPSHOT_PROMPT` sur la chronologie anonymisée | `synthese_narrative`, `problemes_actifs`, `antecedents_notables`, `points_de_vigilance`, `suivi_a_prevoir` |
+| **Intelligente** (IA) | `PATIENT_SNAPSHOT_PROMPT` sur la chronologie anonymisée | `synthese_narrative`, `briefing_consultation` (récit du Cockpit, Sprint 2), `problemes_actifs`, `antecedents_notables`, `points_de_vigilance`, `suivi_a_prevoir` |
 
 Le prompt **interdit explicitement** de lister des médicaments (gérés côté déterministe) et de poser un diagnostic. La `synthese_narrative` est la pièce maîtresse (3–5 phrases naturelles, ton « résumé de confrère »). Les points de vigilance portent une **sévérité hiérarchisée** — `important` (rare, critique et explicite), `attention`, `info` — pour que le médecin saisisse le niveau d'attention en une seconde (couleurs rouge/orange/bleu côté UI).
 

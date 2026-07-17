@@ -40,9 +40,10 @@ Livré : design foundation, dashboard « Aujourd'hui », fiche patient moderne, 
 Le saut de qualité qui distingue MediAI : passer de « structurer une consultation » à « comprendre un patient ». Chaque sprint = valeur visible.
 
 1. ✅ **Patient Snapshot** — synthèse de fond vivante en tête de fiche (fondation des piliers suivants).
-2. **Cockpit de consultation** — briefing pré-consultation construit sur le Snapshot.
-3. **Signaux & alertes** — détection proactive (suivis en retard, interactions sur tout le dossier, tendances).
-4. **Différenciation patient & finitions.**
+2. 🔄 **Consultation Cockpit** — le dossier vu comme un briefing préparé (2.1 livré : hero, briefing IA, rappels, évolution, temps gagné ; à venir : timeline premium, recherche clinique, lecture 30 s, constantes). Vise à devenir la fonctionnalité signature de MediAI.
+3. **Ambient AI Consultation** — dictée vocale → compte-rendu SOAP + ordonnances + courriers + tâches de suivi + timeline mis à jour en un clic (concurrent sérieux des solutions d'IA médicale avancées).
+4. **Signaux & alertes** — détection proactive (suivis en retard, interactions sur tout le dossier, tendances).
+5. **Différenciation patient & finitions.**
 
 ## 🔒 Étape HDS — Conformité (avant toute bêta avec de vrais patients)
 
