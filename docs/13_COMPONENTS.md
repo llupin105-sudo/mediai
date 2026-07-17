@@ -1,0 +1,85 @@
+# 13 — COMPONENTS
+
+Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app médecin) et `patient.html` (portail). Avant de créer un composant, chercher ici s'il existe déjà. Tous doivent respecter le [04_DESIGN_SYSTEM.md](04_DESIGN_SYSTEM.md).
+
+> Note d'architecture front : le frontend est un **monofichier** par univers (pas de composants « fichiers » réutilisables). Les « composants » sont des blocs CSS + fonctions `render*()` JS. Cet inventaire sert de carte pour les retrouver et les réutiliser.
+
+---
+
+## App médecin (`index.html`)
+
+### Navigation & shell
+| Composant | Classes / fonctions | Rôle |
+|---|---|---|
+| Sidebar | `.sidebar-*`, `.brand`, nav `data-view` | Navigation principale, réductible (250 → 64 px + tooltips) |
+| Zone de compte | `renderAccountZone`, `.account-*` | Profil + menu (footer sidebar) |
+| Vues applicatives | `switchAppView()`, `.app-view`, `data-view` | Bascule dashboard / patients / consultation / docs / IA / paramètres |
+| Command palette | `.cmdk-*`, `renderCmdkResults`, keyframes `cmdkFadeIn/SlideIn` | Recherche/navigation ⌘K |
+
+### Dashboard
+| Composant | Classes / fonctions |
+|---|---|
+| Salutation | `renderDashGreeting`, `.dash-greeting` |
+| Panneau « Aujourd'hui » | `#dashTodaySection`, `.dash-today-*` |
+| Statistiques | `.dash-stat-card`, `.dash-stats` |
+| Raccourcis | `.dash-shortcut-card`, `.dash-shortcuts-grid` |
+| Fil d'activité | `.dash-activity-*`, `.activity-*` |
+| Barre d'usage / quota | `renderUsageBar` |
+
+### Patient & dossier
+| Composant | Classes / fonctions |
+|---|---|
+| Liste patients | `renderPatientsList`, `showPatientsListView`, `#patientsListView` |
+| Sélecteur de patient | `renderPatientSelectorBar` |
+| Hero fiche patient | `renderPatientHero`, `#patientDetailView` |
+| Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
+| Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
+| Graphique | `renderChart`, `.chart-panel`, `.chart-section` |
+
+### Documents & IA
+| Composant | Classes / fonctions |
+|---|---|
+| Vues document | `renderDocView`, `data-view="doc-*"` (consultation, ordonnance, courrier, labo, imagerie) |
+| Lignes d'ordonnance | `renderOrdonnanceLines` |
+| Bandeau anonymisation | `.anon-strip` |
+| Export | `.btn-export` |
+
+### Feedback & états
+| Composant | Classes / fonctions |
+|---|---|
+| Toasts | `showToast`, `.toast`, keyframes `toastIn/toastOut` |
+| Skeletons | keyframe `skeletonShimmer` |
+| États vides guidés | helper `emptyState()`, keyframe `emptyIn` |
+| Auth | `.auth-*` (onglets, champs, erreurs, submit) |
+
+### Boutons (variantes)
+`.auth-submit`, `.btn-export`, `.btn-price`, `.dash-action-btn`, `.danger` — toutes à hauteur `--btn-h` (42 px). Toute nouvelle variante réutilise `--btn-*`.
+
+---
+
+## Portail patient (`patient.html`)
+
+Composants **mobile-first**, volontairement plus simples et chaleureux.
+
+| Composant | Fonctions |
+|---|---|
+| Écran de connexion | `submitPatientLogin`, `#loginScreen` |
+| Accueil | `renderPatientHome`, `#pGreeting` |
+| Traitements en cours | `renderPatientTreatments`, `#pTreatments` |
+| Documents récents / liste | `renderPatientRecentDocs`, `renderPatientDocuments`, filtres `setDocFilter` |
+| Timeline patient | `renderPatientTimeline`, `loadPatientTimeline` |
+| Profil | `#pProfile*` |
+| Tabbar (navigation basse) | `switchPatientView`, `#pTabbar` |
+| Carte accent | `.p-card-warm` (dégradé bleu) |
+
+---
+
+## Règles pour créer un composant
+
+1. **Chercher d'abord** un composant existant à réutiliser/étendre.
+2. Respecter les tokens du [04_DESIGN_SYSTEM.md](04_DESIGN_SYSTEM.md) (couleurs sémantiques, `--btn-h`, `--r-*`, `--shadow-*`, mouvement `--dur-*`/`--ease*`).
+3. Prévoir l'état **vide**, **chargement** (skeleton) et **erreur** (toast).
+4. Accessibilité : focus visible, mouvement désactivable.
+5. Ne pas transposer tel quel un composant entre univers médecin et patient.
+
+> Dette connue : le frontend monofichier limite la réutilisation. Une future extraction en composants est une piste ouverte (→ [14_BACKLOG.md](14_BACKLOG.md)), non prioritaire tant que la vélocité reste bonne.

@@ -10,7 +10,6 @@
  *   PUT  /api/auth/profile            - Mise à jour du profil médecin
  *   POST /api/audio/transcribe        - Audio → texte (Whisper)
  *   POST /api/transcription/analyze   - Pipeline complet texte → compte-rendu
- *   GET  /api/compterendu/:id         - Récupère un compte-rendu sauvegardé
  *   POST /api/create-checkout-session - Démarre un paiement Stripe
  *   GET  /api/verify-session          - Vérifie un paiement Stripe
  *   POST /api/stripe/webhook          - Cycle d'abonnement Stripe (activation + rétrogradation)
@@ -59,14 +58,37 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
 
 const FREE_LIMIT = 3;
 
-// ── DEBUG : vérifie la clé au démarrage du serveur ─────────────────
+// ── Diagnostic de démarrage (présence des secrets uniquement) ──────
+// On ne journalise JAMAIS la valeur ni un fragment d'un secret.
 console.log('═══════════════════════════════════════');
-console.log('DEBUG - Dossier de travail actuel :', process.cwd());
-console.log('DEBUG - Clé API détectée :', process.env.ANTHROPIC_API_KEY
-  ? process.env.ANTHROPIC_API_KEY.slice(0, 20) + '... (longueur: ' + process.env.ANTHROPIC_API_KEY.length + ')'
-  : 'AUCUNE — utilisera YOUR_KEY_HERE par défaut !');
-console.log('DEBUG - DATABASE_URL détectée :', process.env.DATABASE_URL ? 'oui' : 'NON — la base ne fonctionnera pas');
+console.log('MediAI — démarrage');
+console.log('  Clé API Anthropic :', process.env.ANTHROPIC_API_KEY ? 'présente' : 'ABSENTE');
+console.log('  DATABASE_URL      :', process.env.DATABASE_URL ? 'présente' : 'ABSENTE');
+console.log('  NODE_ENV          :', process.env.NODE_ENV || '(non défini)');
 console.log('═══════════════════════════════════════');
+
+// ── Origines autorisées (CORS) ─────────────────────────────────────
+// Liste blanche configurable via ALLOWED_ORIGINS (séparées par des
+// virgules). Fin du `Access-Control-Allow-Origin: *`.
+//
+// Transition de domaine : les domaines définitifs (app.mediai.fr,
+// mediai.fr) sont DÉJÀ dans le défaut ci-dessous — ils fonctionneront
+// automatiquement dès que le DNS OVH pointera vers Vercel, sans modifier
+// le code. Pour verrouiller strictement en production, définir la variable
+// d'environnement ALLOWED_ORIGINS = 'https://app.mediai.fr,https://mediai.fr'
+// (elle remplace entièrement le défaut, y compris les previews Vercel).
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
+  'https://app.mediai.fr,https://mediai.fr,https://mediai-site.vercel.app,http://localhost:3000,http://localhost:5500,http://127.0.0.1:5500')
+  .split(',').map((o) => o.trim()).filter(Boolean);
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  try {
+    if (new URL(origin).hostname.endsWith('.vercel.app')) return true;
+  } catch { /* origine malformée : refusée */ }
+  return false;
+}
 
 const app = express();
 
@@ -113,8 +135,14 @@ const aiLimiter = rateLimit({
 });
 
 // ── CORS ────────────────────────────────────────────────────────────
+// L'API n'utilise pas de cookies (jeton porté par l'en-tête Authorization) :
+// on renvoie l'origine exacte quand elle est autorisée, sinon rien.
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (isOriginAllowed(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-id');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
@@ -1119,32 +1147,6 @@ app.get('/api/patient/timeline', requirePatientAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
-// GET /api/compterendu/:id
-// ────────────────────────────────────────────────────────────────────
-app.get('/api/compterendu/:id', requireAuth, async (req, res) => {
-  try {
-    const cr = await db.getCompteRenduById(req.params.id);
-    if (!cr) return res.status(404).json({ error: 'Compte-rendu introuvable' });
-    if (cr.medecin_id !== req.medecin.id) return res.status(403).json({ error: 'Accès refusé' });
-    return res.json(cr);
-  } catch (err) {
-    return res.status(500).json({ error: 'Erreur lors de la récupération' });
-  }
-});
-
-// ────────────────────────────────────────────────────────────────────
-// GET /api/historique — liste des anciens comptes-rendus (avant la fiche patient)
-// ────────────────────────────────────────────────────────────────────
-app.get('/api/historique', requireAuth, async (req, res) => {
-  try {
-    const rows = await db.listCompteRendusByMedecin(req.medecin.id);
-    return res.json({ items: rows });
-  } catch (err) {
-    return res.status(500).json({ error: "Erreur lors de la récupération de l'historique" });
-  }
-});
-
-// ────────────────────────────────────────────────────────────────────
 // POST /api/create-checkout-session
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/create-checkout-session', requireAuth, async (req, res) => {
@@ -1297,8 +1299,12 @@ app.get('/health', async (req, res) => {
   }
   res.json({
     status: 'ok',
-    version: '2.4.0',
-    hds_compliant: true,
+    version: '2.5.0',
+    // Transparence : l'infra actuelle n'est PAS certifiée HDS. Tant que la
+    // migration n'est pas faite, seules des données synthétiques sont
+    // autorisées. Voir docs/10_SECURITY.md.
+    hds_compliant: false,
+    data_policy: 'synthetic-only',
     anonymization: 'active',
     database: dbStatus,
     timestamp: new Date().toISOString(),
@@ -1307,20 +1313,36 @@ app.get('/health', async (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
-// ── Initialise la base avant de démarrer le serveur ────────────────
-db.initDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`MédiIA Server — port ${PORT}`);
-      console.log(`Base de données PostgreSQL : connectée et prête`);
+// ── Initialise la base puis démarre le serveur ─────────────────────
+function start() {
+  return db.initDb()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`MediAI Server — port ${PORT}`);
+        console.log('Base de données PostgreSQL : connectée et prête');
+      });
+    })
+    .catch((err) => {
+      console.error('ERREUR CRITIQUE - Impossible d\'initialiser la base de données :', err.message);
+      console.error('Le serveur démarre quand même, mais les routes échoueront tant que DATABASE_URL n\'est pas correcte.');
+      app.listen(PORT, () => {
+        console.log(`MediAI Server — port ${PORT} (mode dégradé, base de données indisponible)`);
+      });
     });
-  })
-  .catch((err) => {
-    console.error('ERREUR CRITIQUE - Impossible d\'initialiser la base de données :', err.message);
-    console.error('Le serveur démarre quand même, mais les routes échoueront tant que DATABASE_URL n\'est pas correcte.');
-    app.listen(PORT, () => {
-      console.log(`MédiIA Server — port ${PORT} (mode dégradé, base de données indisponible)`);
-    });
-  });
+}
+
+// Ne démarre le serveur qu'en exécution directe (`node server.js`).
+// Un require() depuis les tests n'ouvre ni port ni connexion à la base.
+if (require.main === module) {
+  start();
+}
 
 module.exports = app;
+// Helpers purs exposés pour les tests (voir test/).
+Object.assign(module.exports, {
+  effectiveFreeUsage,
+  currentMonth,
+  buildKnownTerms,
+  publicUser,
+  isOriginAllowed,
+});

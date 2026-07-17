@@ -19,6 +19,11 @@ async function sendReportEmail({ recipientEmail, pdfBase64, senderName, resume }
     throw err;
   }
 
+  // Adresse d'expéditeur configurable. Défaut = adresse de test Resend
+  // (sans domaine à vérifier) ; EN PRODUCTION, définir EMAIL_FROM sur un
+  // domaine vérifié. Voir docs/10_SECURITY.md.
+  const fromAddress = process.env.EMAIL_FROM || 'MediAI <onboarding@resend.dev>';
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -26,7 +31,7 @@ async function sendReportEmail({ recipientEmail, pdfBase64, senderName, resume }
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'MédiIA <onboarding@resend.dev>', // adresse de test Resend, sans domaine à vérifier
+      from: fromAddress,
       to: [recipientEmail],
       subject: `Compte-rendu médical — ${resume || 'consultation'}`,
       html: `

@@ -1,0 +1,56 @@
+# CHANGELOG
+
+Historique des changements notables de MediAI. Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/). Dates au format AAAA-MM-JJ.
+
+---
+
+## [Non publié] — Phase 0 : Consolidation — 2026-07-17
+
+Professionnalisation du projet avant reprise du développement. Aucune nouvelle fonctionnalité produit.
+
+### Ajouté
+- Documentation `docs/` entièrement restructurée en source de vérité unique (fichiers numérotés `00_START_HERE` → `14_BACKLOG` + `CHANGELOG`).
+- Base de tests `test/` (`node:test`) : anonymisation, helpers de compte/quota, configuration.
+- Variables d'environnement `ALLOWED_ORIGINS` (liste blanche CORS) et `EMAIL_FROM` (expéditeur email) documentées dans `.env.example`.
+- `CLAUDE.md` racine pointant vers `docs/00_START_HERE.md`.
+
+### Modifié
+- `GET /health` : suppression de l'affirmation trompeuse `hds_compliant: true` → expose l'état réel (`hds_compliant: false`, `data_policy: "synthetic-only"`).
+- CORS restreint à une liste blanche d'origines (fin du `Access-Control-Allow-Origin: *`).
+- Logs de démarrage : ne divulguent plus de fragment de clé API (présence/absence uniquement).
+- `services/email.js` : adresse d'expéditeur configurable via `EMAIL_FROM`.
+- `server.js` : démarrage du serveur guardé par `require.main === module` (permet de tester les helpers sans effet de bord) + export des helpers testables.
+
+### Supprimé
+- `index.html` à la racine du backend (mort — jamais servi ni référencé).
+- Sous-système legacy `compte_rendus` : endpoints `GET /api/historique` et `GET /api/compterendu/:id`, fonctions DB `saveCompteRendu` / `getCompteRenduById` / `listCompteRendusByMedecin`, et création de la table dans `initDb()`.
+- Anciens dossiers de documentation vides (`architecture/`, `bugs/`, `company/`, `decisions/`, `design/`, `product/`, `roadmap/`, `vision/`) et le dossier `AI/` (contenu consolidé dans `docs/`).
+
+### Migration base de données
+- Script sûr fourni pour retirer la table legacy des bases existantes (vérifie qu'elle est vide avant suppression) : `DATABASE_URL='...' node scripts/drop-compte-rendus.js`.
+
+### Configuration
+- CORS : les domaines de production définitifs `https://app.mediai.fr` et `https://mediai.fr` sont ajoutés au défaut — ils fonctionneront dès que le DNS OVH pointera vers Vercel, sans modification de code. `ALLOWED_ORIGINS` permet de verrouiller strictement ensuite.
+
+---
+
+## Historique antérieur (résumé)
+
+### 2026-07-14 — Stabilisation & sécurité (backend)
+- Correctif modèle Claude (`claude-sonnet-4-6`) — l'IA fonctionne de nouveau.
+- Sécurité : `JWT_SECRET` fail-closed en production, rate limiting (global/auth/IA), `trust proxy`.
+- Quota IA partagé sur tous les endpoints + remise à zéro mensuelle paresseuse.
+- Webhook Stripe : source de vérité de l'abonnement (activation + rétrogradation).
+- Anonymisation renforcée : retrait déterministe des noms connus (patient/médecin).
+- Portabilité : sous-traitants isolés dans `services/`, `.env.example`, `docker/Dockerfile`.
+
+### 2026-07 — Phase 2 Premium (frontend `mediai-site`)
+- Design foundation (tokens de mouvement, accessibilité, skeletons, états vides).
+- Dashboard « Aujourd'hui », fiche patient moderne.
+- Refonte de la sidebar (signature MediAI).
+- Timeline médicale interactive.
+- Pivot d'identité visuelle vers la palette bleue.
+
+---
+
+> Convention : à chaque changement notable, ajouter une entrée sous « Non publié », puis dater la section lors d'un jalon. Mettre aussi à jour [03_PROJECT_STATE.md](03_PROJECT_STATE.md).

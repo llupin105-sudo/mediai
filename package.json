@@ -1,13 +1,14 @@
 {
   "name": "mediai-backend",
   "version": "1.0.0",
-  "description": "MediIA backend - IA medicale, comptes utilisateurs (email + Google), abonnements, audio, PDF, email et PostgreSQL",
+  "description": "MediAI backend - IA medicale, comptes utilisateurs (email + Google), abonnements, audio, PDF, email et PostgreSQL",
   "main": "server.js",
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

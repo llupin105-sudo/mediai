@@ -73,17 +73,6 @@ async function initDb() {
   // celui stocké, le compteur repart de zéro au prochain usage.
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS free_usage_month TEXT DEFAULT '';`);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS compte_rendus (
-      id UUID PRIMARY KEY,
-      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      specialite TEXT NOT NULL,
-      compte_rendu JSONB NOT NULL,
-      tokens_used INTEGER,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-  `);
-
   // ── Fiche patient ────────────────────────────────────────────────
   // La fiche reste créée et possédée par le médecin (medecin_id).
   // Phase 2.2 : le médecin peut "activer l'accès patient" pour une
@@ -250,31 +239,6 @@ async function getUserByStripeCustomerId(customerId) {
   return rowToUser(result.rows[0]);
 }
 
-// ── Comptes-rendus ────────────────────────────────────────────────
-
-async function saveCompteRendu({ id, medecinId, specialite, compteRendu, tokensUsed }) {
-  const result = await pool.query(
-    `INSERT INTO compte_rendus (id, medecin_id, specialite, compte_rendu, tokens_used)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [id, medecinId, specialite, JSON.stringify(compteRendu), tokensUsed]
-  );
-  return result.rows[0];
-}
-
-async function getCompteRenduById(id) {
-  const result = await pool.query(`SELECT * FROM compte_rendus WHERE id = $1`, [id]);
-  return result.rows[0] || null;
-}
-
-async function listCompteRendusByMedecin(medecinId, limit = 50) {
-  const result = await pool.query(
-    `SELECT id, specialite, compte_rendu, tokens_used, created_at
-     FROM compte_rendus WHERE medecin_id = $1 ORDER BY created_at DESC LIMIT $2`,
-    [medecinId, limit]
-  );
-  return result.rows;
-}
-
 // ── Patients ──────────────────────────────────────────────────────
 
 async function createPatient({ id, medecinId, nom, prenom, dateNaissance, notes }) {
@@ -376,9 +340,6 @@ module.exports = {
   incrementFreeUsage,
   setUserPro,
   getUserByStripeCustomerId,
-  saveCompteRendu,
-  getCompteRenduById,
-  listCompteRendusByMedecin,
   createPatient,
   listPatientsByMedecin,
   getPatientById,
