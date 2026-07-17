@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Phase 5, Sprint 3 (3.2) : Évolution des constantes — 2026-07-17
+
+Frontend uniquement (`mediai-site`). Aucun changement backend ni de schéma — exploite les constantes déjà capturées par consultation.
+
+### Ajouté
+- Carte **« Évolution des constantes »** dans le Consultation Cockpit : lit `data.sections.objectif.constantes` (tension, poids, pouls, température, saturation) à travers toutes les consultations du dossier et trace des **mini-sparklines** SVG + dernière valeur + tendance (↗︎/↘︎/stable). `renderVitalsEvolutionHtml`, `VITALS`, `firstNum`, `vitalsSparkline`, `vitalsTrend`.
+- **100 % déterministe** : aucune IA, aucune valeur inventée, tendances neutres (pas de jugement « bon/mauvais »). Clôture le point 4 du Cockpit (comparaison de constantes) sans évolution de base de données.
+
+### À venir (3.3)
+- Tâches de suivi persistantes ; polish du flux d'enregistrement vocal.
+
+---
+
 ## [Non publié] — Phase 5, Sprint 3 (3.1) : Ambient Consultation — orchestration — 2026-07-17
 
 Frontend uniquement (`mediai-site`). Aucun changement backend (tous les endpoints existaient déjà).
