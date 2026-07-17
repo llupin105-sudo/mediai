@@ -48,7 +48,11 @@
 
 ## 🔄 En cours / prochainement
 
-Ordre validé pour la suite de la Phase 2 :
+**Phase 5 — MediAI OS (couche d'intelligence patient) — DÉMARRÉE**
+- ✅ **Sprint 1 — Patient Snapshot** : synthèse de fond du dossier en tête de fiche patient. Hybride (traitements/dernière consult déterministes + IA pour narratif/problèmes/vigilance/suivi), cachée dans `patient_synthesis`, régénérée au changement d'événements. Backend (`GET /api/patients/:id/snapshot`) + UI + tests. → [08_AI_SYSTEM.md](08_AI_SYSTEM.md).
+- ⏭️ Sprint 2 — Cockpit de consultation · Sprint 3 — Signaux & alertes · Sprint 4 — différenciation patient. → [11_ROADMAP.md](11_ROADMAP.md).
+
+Ordre validé pour la suite de la Phase 2 (frontend, en parallèle) :
 1. **Expérience patient différenciée** — donner à `patient.html` une identité visuelle propre, épurée, orientée « suivi de santé » (aujourd'hui il partage la palette médecin).
 2. **⌘K / recherche universelle** raffinée (Spotlight).
 3. **Centre de notifications**.

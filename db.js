@@ -119,6 +119,21 @@ async function initDb() {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_medical_events_patient ON medical_events(patient_id, event_date DESC);`);
 
+  // ── Synthèse patient (Phase 5 — couche d'intelligence) ───────────
+  // Cache d'une ligne par patient : synthèse de fond du dossier
+  // (problèmes actifs, vigilance, suivi, narratif...) régénérée quand le
+  // nombre d'événements change (`source_events_count`). Évite de rappeler
+  // le modèle à chaque ouverture de fiche.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS patient_synthesis (
+      patient_id UUID PRIMARY KEY REFERENCES patients(id) ON DELETE CASCADE,
+      data JSONB NOT NULL,
+      source_events_count INTEGER NOT NULL DEFAULT 0,
+      tokens_used INTEGER,
+      generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id UUID PRIMARY KEY,
@@ -314,6 +329,29 @@ async function getMedicalEventById(id) {
   return result.rows[0] || null;
 }
 
+// ── Synthèse patient (Phase 5) ────────────────────────────────────
+
+async function getPatientSynthesis(patientId) {
+  const result = await pool.query(`SELECT * FROM patient_synthesis WHERE patient_id = $1`, [patientId]);
+  return result.rows[0] || null;
+}
+
+// Upsert : une seule ligne par patient, remplacée à chaque régénération.
+async function savePatientSynthesis({ patientId, data, sourceEventsCount, tokensUsed }) {
+  const result = await pool.query(
+    `INSERT INTO patient_synthesis (patient_id, data, source_events_count, tokens_used, generated_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (patient_id) DO UPDATE
+       SET data = EXCLUDED.data,
+           source_events_count = EXCLUDED.source_events_count,
+           tokens_used = EXCLUDED.tokens_used,
+           generated_at = now()
+     RETURNING *`,
+    [patientId, JSON.stringify(data), sourceEventsCount, tokensUsed || null]
+  );
+  return result.rows[0];
+}
+
 // ── Audit HDS ─────────────────────────────────────────────────────
 
 async function logAudit({ id, method, path, ip, userEmail, requestId }) {
@@ -349,5 +387,7 @@ module.exports = {
   createMedicalEvent,
   listEventsByPatient,
   getMedicalEventById,
+  getPatientSynthesis,
+  savePatientSynthesis,
   logAudit,
 };

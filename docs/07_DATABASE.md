@@ -11,6 +11,7 @@ erDiagram
     users ||--o{ patients : "medecin_id"
     users ||--o{ medical_events : "medecin_id"
     patients ||--o{ medical_events : "patient_id"
+    patients ||--o| patient_synthesis : "cache snapshot"
 
     users {
         uuid id PK
@@ -63,6 +64,13 @@ erDiagram
         text user_email
         text request_id
     }
+    patient_synthesis {
+        uuid patient_id PK "FK patients"
+        jsonb data "snapshot IA + faits"
+        int source_events_count "clé de fraîcheur du cache"
+        int tokens_used
+        timestamptz generated_at
+    }
 ```
 
 ---
@@ -85,6 +93,9 @@ Table centrale. **Un type d'événement = une valeur de `type`**, le contenu sp�
 - Types actuels : `consultation`, `ordonnance`, `courrier`, `analyse_labo`, `imagerie`.
 - Index : `idx_medical_events_patient (patient_id, event_date DESC)` pour la timeline.
 - C'est cette structure qui permet la chronologie unifiée et la timeline intelligente sans multiplier les tables.
+
+### `patient_synthesis` — cache du Patient Snapshot (Phase 5)
+Une ligne par patient (`patient_id` en PK, `ON DELETE CASCADE`). Mémorise la synthèse de fond du dossier (JSONB) et le nombre d'événements au moment de la génération (`source_events_count`). Le snapshot est régénéré quand ce compteur ne correspond plus au nombre réel d'événements. Upsert via `savePatientSynthesis`. → [08_AI_SYSTEM.md](08_AI_SYSTEM.md).
 
 ### `audit_logs` — journalisation
 Une ligne par requête HTTP (méthode, chemin, IP, email éventuel, `request_id`). L'écriture n'échoue **jamais** une requête (erreurs seulement journalisées). Fondation de traçabilité pour la conformité HDS.

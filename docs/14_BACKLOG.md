@@ -20,7 +20,10 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 | 8 | 🟢 | Rate limiting en mémoire | Passer à un store Redis en cas de scaling horizontal. |
 | 9 | 🟢 | Pas de migrations versionnées | `initDb()` fait foi (ALTER idempotents). Envisager `node-pg-migrate` quand le schéma grandit. |
 | 10 | 🟢 | Frontend monofichier | ~4000 lignes (médecin). Extraction en composants possible, non prioritaire tant que la vélocité reste bonne. |
-| 11 | 🟢 | Couverture de tests | Base posée (anonymiseur, helpers). Étendre vers les endpoints avec une base de test dédiée. → `test/`. |
+| 11 | 🟢 | Couverture de tests | Base posée (anonymiseur, helpers, snapshot). Étendre vers les endpoints avec une base de test dédiée. → `test/`. |
+| 12 | 🟠 | Coût du Patient Snapshot | Non décompté du quota : surveiller la consommation Claude (option : générer à la demande explicite pour le tier gratuit, ou débouncer). → [08_AI_SYSTEM.md](08_AI_SYSTEM.md). |
+| 13 | 🟢 | Édition manuelle du Snapshot | Aujourd'hui régénéré (lecture seule côté médecin). Permettre au médecin d'épingler/corriger des éléments (« l'IA propose, il décide »). |
+| 14 | 🟢 | Anonymisation du Snapshot | Utilise la tokenisation du nom (comme `resume-intelligent`), pas le pipeline `anonymize()` complet. Uniformiser si besoin. |
 
 ---
 

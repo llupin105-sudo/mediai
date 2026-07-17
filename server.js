@@ -26,7 +26,7 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT } = require('./prompts');
 const db = require('./db');
 
 // ── Sous-traitants externes, isolés dans services/ (portabilité) ──────
@@ -269,6 +269,86 @@ function buildKnownTerms(patient, medecin) {
     addName('MEDECIN', medecin.profile.nom);
   }
   return terms;
+}
+
+// ── Patient Snapshot (Phase 5) — couche d'intelligence patient ─────
+// Partie DÉTERMINISTE de la synthèse : jamais générée par le modèle, donc
+// jamais hallucinée. Les traitements viennent de la dernière ordonnance
+// réelle, la dernière consultation du dernier événement de ce type.
+function buildSnapshotFacts(events) {
+  const list = events || [];
+  const latestOrdonnance = list.find((e) => e.type === 'ordonnance');
+  const traitements = latestOrdonnance && Array.isArray(latestOrdonnance.data?.prescriptions)
+    ? latestOrdonnance.data.prescriptions
+        .filter((p) => p && p.medicament)
+        .map((p) => ({ medicament: p.medicament, posologie: p.posologie || '', duree: p.duree || '' }))
+    : [];
+  const latestConsult = list.find((e) => e.type === 'consultation');
+  const derniereConsultation = latestConsult
+    ? { date: latestConsult.event_date, resume: latestConsult.data?.resume_1_ligne || latestConsult.title || '' }
+    : null;
+  return {
+    traitements_en_cours: traitements,
+    traitements_source_date: latestOrdonnance ? latestOrdonnance.event_date : null,
+    derniere_consultation: derniereConsultation,
+    nb_evenements: list.length,
+    nb_consultations: list.filter((e) => e.type === 'consultation').length,
+  };
+}
+
+// Le cache est périmé si absent ou si le nombre d'événements a changé
+// depuis la dernière génération (un nouvel événement = dossier modifié).
+function isSnapshotStale(cached, currentEventsCount) {
+  if (!cached) return true;
+  return cached.source_events_count !== currentEventsCount;
+}
+
+// Snapshot d'un dossier vide : structure complète, sans appel modèle.
+function emptySnapshot(facts) {
+  return {
+    synthese_narrative: '',
+    problemes_actifs: [],
+    antecedents_notables: [],
+    points_de_vigilance: [],
+    suivi_a_prevoir: [],
+    ...facts,
+  };
+}
+
+// Partie INTELLIGENTE : synthèse narrative + problèmes + vigilance + suivi,
+// via Claude, sur une chronologie compacte anonymisée (nom du patient
+// remplacé par des tokens, restauré ensuite). Ne renvoie PAS de traitements.
+async function generateSnapshotIntelligence(patient, events) {
+  const lines = events
+    .slice()
+    .reverse() // ordre chronologique croissant pour un récit cohérent
+    .map((e) => {
+      const date = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (e.type === 'consultation') return `${date} — Consultation : ${e.data.resume_1_ligne || e.title}`;
+      if (e.type === 'ordonnance') {
+        const meds = (e.data.prescriptions || []).map((p) => p.medicament).filter(Boolean).join(', ');
+        return `${date} — Ordonnance : ${meds || e.title}`;
+      }
+      if (e.type === 'courrier') return `${date} — Courrier : ${e.data.objet || e.title}`;
+      if (e.type === 'analyse_labo') return `${date} — Analyses : ${e.title}`;
+      if (e.type === 'imagerie') return `${date} — Imagerie : ${e.title}`;
+      return `${date} — ${e.type} : ${e.title}`;
+    });
+
+  let timelineText = lines.join('\n');
+  if (patient.prenom) timelineText = timelineText.split(patient.prenom).join('[PATIENT_PRENOM]');
+  if (patient.nom) timelineText = timelineText.split(patient.nom).join('[PATIENT_NOM]');
+
+  const { json, tokensUsed } = await callClaude({
+    system: PATIENT_SNAPSHOT_PROMPT.system,
+    user: PATIENT_SNAPSHOT_PROMPT.user(timelineText),
+    maxTokens: 1200,
+  });
+
+  let str = JSON.stringify(json);
+  if (patient.prenom) str = str.split('[PATIENT_PRENOM]').join(patient.prenom);
+  if (patient.nom) str = str.split('[PATIENT_NOM]').join(patient.nom);
+  return { fields: JSON.parse(str), tokensUsed };
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -1028,6 +1108,63 @@ app.get('/api/patients/:id/search', aiLimiter, requireAuth, enforceAiQuota, asyn
   }
 });
 
+// ────────────────────────────────────────────────────────────────────
+// GET /api/patients/:id/snapshot   (Phase 5 — couche d'intelligence)
+// Synthèse de fond du dossier, affichée en tête de la fiche patient.
+// Servie depuis le cache (table patient_synthesis) et régénérée quand le
+// dossier a changé. Hybride : faits déterministes (traitements, dernière
+// consult) + couche IA (narratif, problèmes, vigilance, suivi).
+// Volontairement NON décomptée du quota gratuit : c'est une fonction
+// « toujours active » déclenchée par la simple ouverture d'un dossier ;
+// le cache garantit qu'elle n'appelle le modèle qu'après un vrai changement.
+// ?refresh=1 force la régénération.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/patients/:id/snapshot', aiLimiter, requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+
+    const events = await db.listEventsByPatient(patient.id);
+    const facts = buildSnapshotFacts(events);
+
+    // Dossier vide : aucune synthèse à générer, aucun appel modèle.
+    if (events.length === 0) {
+      return res.json({ success: true, snapshot: emptySnapshot(facts), cached: false, empty: true });
+    }
+
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const cached = await db.getPatientSynthesis(patient.id);
+
+    // Cache frais : on renvoie la partie IA mémorisée + les faits recalculés
+    // (déterministes et à jour puisque le nombre d'événements n'a pas changé).
+    if (!forceRefresh && !isSnapshotStale(cached, events.length)) {
+      return res.json({
+        success: true,
+        snapshot: { ...cached.data, ...facts },
+        cached: true,
+        generated_at: cached.generated_at,
+      });
+    }
+
+    // Régénération.
+    const { fields, tokensUsed } = await generateSnapshotIntelligence(patient, events);
+    const data = { ...fields, ...facts };
+    const saved = await db.savePatientSynthesis({
+      patientId: patient.id,
+      data,
+      sourceEventsCount: events.length,
+      tokensUsed,
+    });
+
+    return res.json({ success: true, snapshot: data, cached: false, generated_at: saved.generated_at });
+  } catch (err) {
+    console.error('[ERROR snapshot]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la génération de la synthèse patient' });
+  }
+});
+
 app.put('/api/patients/:id/notes', requireAuth, async (req, res) => {
   try {
     const patient = await db.getPatientById(req.params.id);
@@ -1345,4 +1482,7 @@ Object.assign(module.exports, {
   buildKnownTerms,
   publicUser,
   isOriginAllowed,
+  buildSnapshotFacts,
+  isSnapshotStale,
+  emptySnapshot,
 });

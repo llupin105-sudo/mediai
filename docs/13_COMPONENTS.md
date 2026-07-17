@@ -32,6 +32,7 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | Liste patients | `renderPatientsList`, `showPatientsListView`, `#patientsListView` |
 | Sélecteur de patient | `renderPatientSelectorBar` |
 | Hero fiche patient | `renderPatientHero`, `#patientDetailView` |
+| **Patient Snapshot** (Phase 5) | `renderPatientSnapshot`, `fetchPatientSnapshot`, `refreshPatientSnapshot`, `#patientSnapshotCard` — synthèse intelligente en tête de fiche (narratif, problèmes, vigilance, suivi) |
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |

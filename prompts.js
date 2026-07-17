@@ -490,4 +490,58 @@ Structure ces informations en JSON, en reportant fidèlement ce qui est écrit :
 }`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT };
+/**
+ * Patient Snapshot (Phase 5) — couche d'intelligence patient.
+ * Produit la partie INTELLIGENTE d'une synthèse patient persistante :
+ * problèmes actifs, antécédents, points de vigilance, suivi à prévoir,
+ * résumé narratif. Les TRAITEMENTS ne sont PAS demandés ici : ils sont
+ * extraits de façon déterministe des vraies ordonnances côté serveur
+ * (jamais inventés par le modèle).
+ */
+const PATIENT_SNAPSHOT_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu rédiges la synthèse de fond d'un dossier patient, affichée en permanence en tête du dossier. Vise la qualité d'un excellent confrère qui prépare un résumé clair et agréable à lire pour un collègue : du texte naturel, pas des mots-clés.
+
+Style attendu :
+- La "synthese_narrative" est la pièce maîtresse : 3 à 5 phrases fluides et naturelles qui racontent qui est ce patient sur le plan du suivi (fil conducteur, motifs récurrents, stabilité ou évolutions récentes). Écris comme un médecin parle, pas comme une liste. Exemple de ton : "Monsieur X est suivi pour une hypertension stable depuis plusieurs années. Aucun événement aigu récent n'est identifié. Une surveillance de la tension reste évoquée."
+- Privilégie TOUJOURS des phrases complètes aux listes de mots.
+
+Règles absolues pour ce mode :
+- Tu NE DIAGNOSTIQUES JAMAIS et n'émets aucune conduite à tenir. Tu synthétises des faits déjà présents dans les événements fournis.
+- N'invente aucune information, date, pathologie ou traitement absent des données.
+- NE MENTIONNE PAS de posologies ni de listes de médicaments : les traitements sont gérés séparément et de façon fiable par le système.
+- Les "points_de_vigilance" ne sont PAS des alertes cliniques nouvelles : ce sont des éléments factuels du dossier méritant l'attention, formulés en phrases complètes et prudentes.
+- Hiérarchise leur sévérité honnêtement :
+  · "important" : RARE. Uniquement un élément critique EXPLICITEMENT présent dans le dossier (ex: une allergie documentée, un point de surveillance explicitement signalé comme préoccupant). Ne déduis jamais une criticité.
+  · "attention" : à garder à l'œil (thème récurrent, suivi évoqué mais non réalisé).
+  · "info" : contexte utile.
+- Sobriété : mieux vaut peu d'éléments sûrs que beaucoup de spéculatifs. En cas de doute, omets.
+- Tout est une aide à la lecture du dossier, jamais un avis médical.`,
+
+  user: (timelineText) => `Voici la chronologie textuelle compacte du dossier (du plus récent au plus ancien), avec les tokens d'anonymisation à conserver tels quels :
+
+<chronologie>
+${timelineText}
+</chronologie>
+
+Produis une synthèse de fond en JSON strict :
+
+{
+  "synthese_narrative": "3 à 5 phrases naturelles et fluides (voir le style attendu), sans aucune conclusion clinique nouvelle",
+  "problemes_actifs": [
+    {"libelle": "motif de suivi qui ressort du dossier", "detail": "courte précision factuelle (1 phrase) ou chaîne vide"}
+  ],
+  "antecedents_notables": ["antécédents explicitement mentionnés dans le dossier, un par entrée"],
+  "points_de_vigilance": [
+    {"libelle": "phrase complète décrivant l'élément à surveiller", "severite": "important | attention | info", "raison": "précision factuelle courte, ou chaîne vide"}
+  ],
+  "suivi_a_prevoir": [
+    {"libelle": "action de suivi explicitement évoquée dans le dossier (ex: contrôle à prévoir)", "echeance": "échéance si mentionnée, sinon chaîne vide"}
+  ]
+}
+
+Si une section n'a aucun élément fiable, renvoie un tableau vide.`
+};
+
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT };

@@ -35,6 +35,15 @@ Livré : design foundation, dashboard « Aujourd'hui », fiche patient moderne, 
 3. **Centre de notifications**.
 4. **Micro-interactions & finitions** globales.
 
+## 🚀 Phase 5 — MediAI OS : couche d'intelligence patient (démarrée)
+
+Le saut de qualité qui distingue MediAI : passer de « structurer une consultation » à « comprendre un patient ». Chaque sprint = valeur visible.
+
+1. ✅ **Patient Snapshot** — synthèse de fond vivante en tête de fiche (fondation des piliers suivants).
+2. **Cockpit de consultation** — briefing pré-consultation construit sur le Snapshot.
+3. **Signaux & alertes** — détection proactive (suivis en retard, interactions sur tout le dossier, tendances).
+4. **Différenciation patient & finitions.**
+
 ## 🔒 Étape HDS — Conformité (avant toute bêta avec de vrais patients)
 
 Bloqueur absolu. Migration hébergement HDS + transcription auto-hébergée + socle RGPD (consentement, export, suppression). → [10_SECURITY.md](10_SECURITY.md).

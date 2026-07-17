@@ -66,6 +66,7 @@ Chaque prompt hérite de `BASE_SYSTEM` (sauf vigilance médicamenteuse) qui pose
 | `INTERACTION_CHECK_PROMPT` | `/api/ordonnance/check-interactions` | Vigilance médicamenteuse |
 | `LAB_STRUCTURING_PROMPT` | `/api/analyse-labo/generate` | Structuration d'un CR de laboratoire |
 | `IMAGING_STRUCTURING_PROMPT` | `/api/imagerie/generate` | Structuration d'un CR d'imagerie |
+| `PATIENT_SNAPSHOT_PROMPT` | `/api/patients/:id/snapshot` | Couche IA du Patient Snapshot (Phase 5) — voir ci-dessous |
 
 ### Garde-fous notables
 - **Interactions médicamenteuses** : ne signale que des interactions **largement documentées**, toujours formulées comme « à vérifier via source officielle » (jamais « contre-indiqué »), et rappelle systématiquement que ce n'est pas un avis pharmaceutique. En cas de doute → ne rien signaler plutôt qu'une fausse alerte.
@@ -73,6 +74,19 @@ Chaque prompt hérite de `BASE_SYSTEM` (sauf vigilance médicamenteuse) qui pose
 - **Labo / imagerie** : **extraction administrative uniquement** — structurer un compte-rendu déjà rédigé par le biologiste/radiologue, jamais l'interpréter, jamais analyser une image.
 
 ---
+
+## Patient Snapshot — couche d'intelligence patient (Phase 5)
+
+Synthèse de fond du dossier, affichée en tête de la fiche patient. **Conçue hybride pour ne jamais halluciner sur le médical sensible :**
+
+| Partie | Source | Contenu |
+|---|---|---|
+| **Déterministe** (jamais l'IA) | code, à partir des vrais événements | `traitements_en_cours` (dernière ordonnance), `derniere_consultation`, compteurs |
+| **Intelligente** (IA) | `PATIENT_SNAPSHOT_PROMPT` sur la chronologie anonymisée | `synthese_narrative`, `problemes_actifs`, `antecedents_notables`, `points_de_vigilance`, `suivi_a_prevoir` |
+
+Le prompt **interdit explicitement** de lister des médicaments (gérés côté déterministe) et de poser un diagnostic. La `synthese_narrative` est la pièce maîtresse (3–5 phrases naturelles, ton « résumé de confrère »). Les points de vigilance portent une **sévérité hiérarchisée** — `important` (rare, critique et explicite), `attention`, `info` — pour que le médecin saisisse le niveau d'attention en une seconde (couleurs rouge/orange/bleu côté UI).
+
+**Cache & coût** : le résultat est mémorisé dans la table `patient_synthesis` et **régénéré uniquement quand le nombre d'événements du patient change** (`isSnapshotStale`). L'endpoint est **volontairement non décompté du quota gratuit** (fonction « toujours active » déclenchée par l'ouverture d'un dossier) mais protégé par `aiLimiter`. Cost/latence maîtrisés par le cache. → `buildSnapshotFacts` / `generateSnapshotIntelligence` dans `server.js`, tests dans `test/snapshot.test.js`.
 
 ## Instructions personnalisées
 

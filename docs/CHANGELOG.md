@@ -4,6 +4,22 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Phase 5, Sprint 1 : Patient Snapshot — 2026-07-17
+
+Première brique de la couche d'intelligence patient (« MediAI OS »).
+
+### Ajouté
+- **Patient Snapshot** : synthèse de fond du dossier affichée en tête de la fiche patient. Hybride — faits déterministes (traitements issus de la dernière ordonnance, dernière consultation) + couche IA (résumé narratif, problèmes actifs, antécédents, points de vigilance, suivi à prévoir).
+- Backend : `GET /api/patients/:id/snapshot` (cache-ou-génère, `?refresh=1` force), prompt `PATIENT_SNAPSHOT_PROMPT`, table `patient_synthesis` (cache régénéré au changement d'événements), helpers `buildSnapshotFacts` / `isSnapshotStale` / `generateSnapshotIntelligence`.
+- Frontend (`mediai-site`) : carte « Synthèse intelligente » sous le hero patient (`renderPatientSnapshot`), états chargement/vide/erreur, bouton actualiser.
+- Tests : `test/snapshot.test.js` (logique déterministe + cache). Total 20 tests.
+
+### Notes
+- L'endpoint snapshot est **volontairement non décompté du quota gratuit** (fonction toujours active), protégé par `aiLimiter` et fortement caché. Coût à surveiller (backlog).
+- Le médical sensible (médicaments) n'est **jamais** généré par l'IA — uniquement extrait des vraies ordonnances.
+
+---
+
 ## [Non publié] — Phase 0 : Consolidation — 2026-07-17
 
 Professionnalisation du projet avant reprise du développement. Aucune nouvelle fonctionnalité produit.
