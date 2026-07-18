@@ -42,6 +42,9 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | **Évolution des constantes** (Sprint 3.2) | `renderVitalsEvolutionHtml`, `VITALS`, `vitalsSparkline`, `vitalsTrend`, `firstNum` — carte du Cockpit : sparklines SVG des constantes lues sur les consultations. 100 % déterministe |
 | **Signaux & alertes** (Sprint 4) | `computePatientSignals` (moteur déterministe : suivi dépassé, renouvellement, résultat non revu, tension élevée, absence de suivi), carte Cockpit « Signaux détectés » + `renderDashboardSignals`/`#dashSignalsSection` (panneau transversal). Helpers `parseDelayToDays`, `latestTension`, `signalDot` |
 | **Home intelligente** (Intelligence Workspace) | `renderIntelligentHome`, `computeDayFacts`, `#dashIntelligentHome`, classes `.ih-*` — le dashboard raconte la journée, chaque phrase cliquable vers la bonne page |
+| **Hero patient premium** (Patient Workspace) | dans `renderCockpit` : `.ckpt-heropro`/`.ckpt-glance` — avatar, médecin référent, badge de vigilance, coup d'œil. Helper `lastVital` |
+| **Graphiques de constantes** (Patient Workspace) | `renderVitalsEvolutionHtml`, `vitalsMultiSvg`, `vitCard` — vrais graphiques SVG (aire + courbe + tendance), tension bi-courbe |
+| **Colonne Insights** (Patient Workspace) | `renderPatientInsights`, `piwInsCard`, `#patientInsights`, `.piw-*` — rail sticky deux colonnes : vigilance, signaux, documents clés, à préparer, constantes |
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |

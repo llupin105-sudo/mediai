@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Patient Intelligence Workspace (3) : Colonne « Insights » — 2026-07-17
+
+Frontend uniquement (`mediai-site`). Le dossier patient devient un vrai **workspace deux colonnes**.
+
+### Ajouté / Modifié
+- **Colonne « Insights » latérale sticky** à droite du dossier (`.piw-layout` : contenu à gauche `.piw-main`, rail à droite `.piw-rail`). Reste visible pendant qu'on parcourt le dossier. Consolide : **badge de vigilance**, **signaux**, **documents clés** (accès rapide en un clic), **à préparer** (suivi du snapshot), **dernières constantes**. `renderPatientInsights`, `piwInsCard`, `#patientInsights`, `ensurePiwStyles`.
+- 100 % déterministe (+ suivi issu du snapshot quand chargé). Responsive : passe en une colonne sous 1000 px.
+
+---
+
 ## [Non publié] — Patient Intelligence Workspace (2) : Graphiques de constantes — 2026-07-17
 
 Frontend uniquement (`mediai-site`).
