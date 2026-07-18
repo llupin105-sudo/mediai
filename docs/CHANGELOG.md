@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Intelligence Workspace (3) : Centre de notifications — 2026-07-17
+
+Frontend uniquement (`mediai-site`).
+
+### Ajouté
+- **Centre de notifications** iOS-like : cloche dans l'en-tête de la sidebar avec **pastille de nouveautés**, panneau latéral droit (`renderNotifCenter`) groupant les événements par **« Depuis votre dernière visite »** (non-lus mis en avant) puis par jour (Aujourd'hui / Hier / date). Chaque notification a une **icône + couleur par type**, le patient, l'heure, et ouvre le dossier au clic. `#notifBell`/`#notifBadge`/`#notifOverlay`, `NOTIF_META`, `updateNotifBadge`, `toggleNotifCenter`, `ensureNotifStyles`.
+- « Nouveauté » détectée via `created_at` vs dernière visite (localStorage `mediai_notif_seen`) ; ouvrir le centre marque tout comme vu. 100 % déterministe. Le **fil d'activité** du dashboard (existant) reste le flux principal ; le centre ajoute la couche « depuis la dernière connexion ».
+
+---
+
 ## [Non publié] — Passe qualité & cohérence design — 2026-07-17
 
 Frontend uniquement (`mediai-site`). Audit de cohérence après les nombreux ajouts de l'Intelligence Workspace. Aucune régression fonctionnelle.

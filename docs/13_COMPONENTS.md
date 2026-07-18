@@ -45,6 +45,7 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | **Hero patient premium** (Patient Workspace) | dans `renderCockpit` : `.ckpt-heropro`/`.ckpt-glance` — avatar, médecin référent, badge de vigilance, coup d'œil. Helper `lastVital` |
 | **Graphiques de constantes** (Patient Workspace) | `renderVitalsEvolutionHtml`, `vitalsMultiSvg`, `vitCard` — vrais graphiques SVG (aire + courbe + tendance), tension bi-courbe |
 | **Colonne Insights** (Patient Workspace) | `renderPatientInsights`, `piwInsCard`, `#patientInsights`, `.piw-*` — rail sticky deux colonnes : vigilance, signaux, documents clés, à préparer, constantes |
+| **Centre de notifications** (Intelligence Workspace) | `#notifBell`/`#notifBadge`/`#notifOverlay`, `renderNotifCenter`, `updateNotifBadge`, `NOTIF_META` — cloche sidebar + panneau iOS-like groupé (depuis la dernière visite / par jour) |
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |
