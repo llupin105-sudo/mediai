@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Intelligence Workspace (1) : Home intelligente — 2026-07-17
+
+Frontend uniquement (`mediai-site`). Début du programme « MediAI Intelligence Workspace ».
+
+### Ajouté
+- **Home intelligente** : le dashboard raconte la journée en quelques phrases, chacune **cliquable** vers la bonne page (consultations du jour, nouveaux résultats, patients à suivre, ordonnances qui expirent). Ton calme et premium, jamais agressif. `renderIntelligentHome` / `computeDayFacts` / `#dashIntelligentHome`.
+- 100 % déterministe (compose les événements + signaux déjà calculés), skeleton de chargement, animation d'entrée douce, `prefers-reduced-motion`.
+
+### Programme à venir (increments)
+- Fil d'activité médical, ⌘K premium, panneau « Aujourd'hui » latéral, quick actions, smart timeline narrative, vue patient premium, assistant contextuel, centre de notifications, micro-interactions, mode focus, passe de cohérence design.
+
+---
+
 ## [Non publié] — Phase 5, Sprint 4 (4.1) : Signaux & alertes proactifs — 2026-07-17
 
 Frontend uniquement (`mediai-site`). Le pilier « détecter » : MediAI passe d'assistant qui prépare à assistant qui alerte. **100 % déterministe** — aucune IA sur les signaux (règles factuelles, jamais un diagnostic ni une conduite à tenir).

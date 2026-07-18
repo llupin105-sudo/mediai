@@ -41,6 +41,7 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | **Consultation prête** (Sprint 3) | `renderConsultReadyPanel`, `#consultReadyPanel`, classes `.cr-*` — orchestration ambient après le CR : ordonnance/courrier en un clic (réutilise `openOrdonnanceModal`/`openCourrierModal`), suites à donner, constantes |
 | **Évolution des constantes** (Sprint 3.2) | `renderVitalsEvolutionHtml`, `VITALS`, `vitalsSparkline`, `vitalsTrend`, `firstNum` — carte du Cockpit : sparklines SVG des constantes lues sur les consultations. 100 % déterministe |
 | **Signaux & alertes** (Sprint 4) | `computePatientSignals` (moteur déterministe : suivi dépassé, renouvellement, résultat non revu, tension élevée, absence de suivi), carte Cockpit « Signaux détectés » + `renderDashboardSignals`/`#dashSignalsSection` (panneau transversal). Helpers `parseDelayToDays`, `latestTension`, `signalDot` |
+| **Home intelligente** (Intelligence Workspace) | `renderIntelligentHome`, `computeDayFacts`, `#dashIntelligentHome`, classes `.ih-*` — le dashboard raconte la journée, chaque phrase cliquable vers la bonne page |
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |
