@@ -4,6 +4,23 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Phase 5, Sprint 4 (4.1) : Signaux & alertes proactifs — 2026-07-17
+
+Frontend uniquement (`mediai-site`). Le pilier « détecter » : MediAI passe d'assistant qui prépare à assistant qui alerte. **100 % déterministe** — aucune IA sur les signaux (règles factuelles, jamais un diagnostic ni une conduite à tenir).
+
+### Ajouté
+- **Moteur de détection** `computePatientSignals(events)` : suivi recommandé dépassé, traitement à renouveler (durée d'ordonnance écoulée), résultat récent non revu, tension élevée au dernier relevé (≥140/90 → attention, ≥160/100 → important), absence de consultation > 1 an sous traitement. Conservateur (évite les fausses alertes). Helpers `parseDelayToDays`, `latestTension`.
+- **Carte « Signaux détectés »** en tête du Cockpit (colorée par sévérité 🔴🟠🔵), au-dessus du briefing.
+- **Panneau « Signaux cliniques »** transversal sur le dashboard (`renderDashboardSignals`, `#dashSignalsSection`) : quels patients méritent un regard, cliquables vers le dossier. Réutilise `fetchAllEvents`.
+
+### Principe
+- Signaux = observations factuelles « à vérifier », neutres, jamais une décision. Conforme à « l'IA assiste, ne décide jamais » (ici même sans IA).
+
+### À venir
+- Sprint 4.2 : interactions médicamenteuses sur tout le dossier, tendances de constantes qui dérivent (pente), réglages de seuils.
+
+---
+
 ## [Non publié] — Phase 5, Sprint 3 (3.2) : Évolution des constantes — 2026-07-17
 
 Frontend uniquement (`mediai-site`). Aucun changement backend ni de schéma — exploite les constantes déjà capturées par consultation.
