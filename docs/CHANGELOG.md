@@ -4,6 +4,17 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Intelligence Workspace (2) : ⌘K premium + Quick Actions — 2026-07-17
+
+Frontend uniquement (`mediai-site`).
+
+### Ajouté / Modifié
+- **Command palette ⌘K premium** (Spotlight/Raycast) : **registre de commandes** complet — création (Nouvelle consultation, Nouveau patient) + navigation vers toutes les vues — avec **alias de recherche** (« ordo », « labo », « bio », « irm », « cr », « réglages »…). Recherche unifiée patients + documents + commandes.
+- **Premier résultat présélectionné** (Entrée agit immédiatement), survol = sélection, **badges de type** par résultat (Action/Patient/Document), **pied avec indices clavier** (↑↓ naviguer · ↵ ouvrir · esc fermer). `cmdkCommands`, `cmdkMatch`, `ensureCmdkStyles`.
+- Les actions rapides visibles restent sur le dashboard (bouton primaire + raccourcis) ; la palette est la couche clavier universelle.
+
+---
+
 ## [Non publié] — Intelligence Workspace (1) : Home intelligente — 2026-07-17
 
 Frontend uniquement (`mediai-site`). Début du programme « MediAI Intelligence Workspace ».

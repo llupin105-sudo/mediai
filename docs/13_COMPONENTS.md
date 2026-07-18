@@ -14,7 +14,7 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | Sidebar | `.sidebar-*`, `.brand`, nav `data-view` | Navigation principale, réductible (250 → 64 px + tooltips) |
 | Zone de compte | `renderAccountZone`, `.account-*` | Profil + menu (footer sidebar) |
 | Vues applicatives | `switchAppView()`, `.app-view`, `data-view` | Bascule dashboard / patients / consultation / docs / IA / paramètres |
-| Command palette | `.cmdk-*`, `renderCmdkResults`, keyframes `cmdkFadeIn/SlideIn` | Recherche/navigation ⌘K |
+| Command palette ⌘K (premium) | `.cmdk-*`, `runCommandPaletteSearch`, `cmdkCommands`, `cmdkMatch`, `renderCmdkResults`, `#cmdkFoot` | Spotlight : commandes (création + navigation) avec alias + patients + documents, présélection, indices clavier |
 
 ### Dashboard
 | Composant | Classes / fonctions |
