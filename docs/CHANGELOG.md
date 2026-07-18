@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Patient Intelligence Workspace (2) : Graphiques de constantes — 2026-07-17
+
+Frontend uniquement (`mediai-site`).
+
+### Modifié
+- La carte « Évolution des constantes » du Cockpit passe des sparklines à de **vrais graphiques premium** (façon Apple Health / Stripe) : courbe + **aire dégradée** + dernier point + tendance, une carte par constante (poids, pouls, température, SpO₂) ; la **tension** trace deux courbes (systolique en aire + diastolique) sur une échelle partagée. Dates de début/fin en pied. `renderVitalsEvolutionHtml` réécrit ; helpers `vitalsMultiSvg`, `vitCard`, `vitDateShort`, `ensureVitalsStyles`.
+- **100 % déterministe** : les points sont les valeurs brutes des comptes-rendus, aucune interpolation trompeuse, aucune interprétation.
+
+---
+
 ## [Non publié] — Patient Intelligence Workspace (1) : Hero premium — 2026-07-17
 
 Frontend uniquement (`mediai-site`). Début de la refonte du dossier patient en « espace de compréhension ».
