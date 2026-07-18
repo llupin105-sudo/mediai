@@ -47,6 +47,7 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | **Colonne Insights** (Patient Workspace) | `renderPatientInsights`, `piwInsCard`, `#patientInsights`, `.piw-*` — rail sticky deux colonnes : vigilance, signaux, documents clés, à préparer, constantes |
 | **Centre de notifications** (Intelligence Workspace) | `#notifBell`/`#notifBadge`/`#notifOverlay`, `renderNotifCenter`, `updateNotifBadge`, `NOTIF_META` — cloche sidebar + panneau iOS-like groupé (depuis la dernière visite / par jour) |
 | **Mode Focus** (Intelligence Workspace) | `enterFocusMode`/`exitFocusMode`/`toggleFocusMode`, `body.focus-mode`, `#focusBar` — consultation sans distraction (masque sidebar/topbar/cloche), sortie Échap. Bascule CSS pure |
+| **Smart Timeline narrative** (Patient Workspace) | `fetchTimelineNarrative`/`renderTimelineNarrative`, `#timelineNarrative`, `.tn-*` — carte « Le récit du dossier » (périodes IA). Backend : `GET /api/patients/:id/timeline-narrative`, prompt `TIMELINE_NARRATIVE_PROMPT`, cache `timeline_narratives` |
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |

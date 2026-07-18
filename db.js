@@ -134,6 +134,19 @@ async function initDb() {
     );
   `);
 
+  // ── Récit de la chronologie (Smart Timeline, Patient Workspace) ──
+  // Cache d'une ligne par patient : récit par périodes du dossier,
+  // régénéré quand le nombre d'événements change.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS timeline_narratives (
+      patient_id UUID PRIMARY KEY REFERENCES patients(id) ON DELETE CASCADE,
+      data JSONB NOT NULL,
+      source_events_count INTEGER NOT NULL DEFAULT 0,
+      tokens_used INTEGER,
+      generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id UUID PRIMARY KEY,
@@ -352,6 +365,28 @@ async function savePatientSynthesis({ patientId, data, sourceEventsCount, tokens
   return result.rows[0];
 }
 
+// ── Récit de la chronologie (Smart Timeline) ──────────────────────
+
+async function getTimelineNarrative(patientId) {
+  const result = await pool.query(`SELECT * FROM timeline_narratives WHERE patient_id = $1`, [patientId]);
+  return result.rows[0] || null;
+}
+
+async function saveTimelineNarrative({ patientId, data, sourceEventsCount, tokensUsed }) {
+  const result = await pool.query(
+    `INSERT INTO timeline_narratives (patient_id, data, source_events_count, tokens_used, generated_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (patient_id) DO UPDATE
+       SET data = EXCLUDED.data,
+           source_events_count = EXCLUDED.source_events_count,
+           tokens_used = EXCLUDED.tokens_used,
+           generated_at = now()
+     RETURNING *`,
+    [patientId, JSON.stringify(data), sourceEventsCount, tokensUsed || null]
+  );
+  return result.rows[0];
+}
+
 // ── Audit HDS ─────────────────────────────────────────────────────
 
 async function logAudit({ id, method, path, ip, userEmail, requestId }) {
@@ -389,5 +424,7 @@ module.exports = {
   getMedicalEventById,
   getPatientSynthesis,
   savePatientSynthesis,
+  getTimelineNarrative,
+  saveTimelineNarrative,
   logAudit,
 };

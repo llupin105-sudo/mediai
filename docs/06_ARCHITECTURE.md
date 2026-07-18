@@ -157,7 +157,7 @@ Détail des contrats dans le code (`server.js`). Vue synthétique :
 |---|---|
 | Auth médecin | `POST /api/auth/signup` · `/login` · `/google` · `GET /api/auth/me` · `PUT /api/auth/profile` · `/api/auth/preferences` |
 | IA & documents | `POST /api/audio/transcribe` · `/api/transcription/analyze` · `/api/courrier/generate` · `/api/ordonnance/generate` · `/api/ordonnance/check-interactions` · `/api/analyse-labo/generate` · `/api/imagerie/generate` · `/api/symptomes/questions` |
-| Patients | `POST /api/patients` · `GET /api/patients` · `GET /api/patients/:id` · `GET /api/patients/:id/snapshot` · `/resume-intelligent` · `/preparation` · `/search` · `PUT /api/patients/:id/notes` · `POST /api/patients/:id/activate-portal` |
+| Patients | `POST /api/patients` · `GET /api/patients` · `GET /api/patients/:id` · `GET /api/patients/:id/snapshot` · `/timeline-narrative` · `/resume-intelligent` · `/preparation` · `/search` · `PUT /api/patients/:id/notes` · `POST /api/patients/:id/activate-portal` |
 | Portail patient | `POST /api/patient-auth/login` · `GET /api/patient/me` · `/api/patient/timeline` |
 | Facturation | `POST /api/create-checkout-session` · `GET /api/verify-session` · `POST /api/stripe/webhook` |
 | Divers | `POST /api/send-report-email` · `GET /health` |

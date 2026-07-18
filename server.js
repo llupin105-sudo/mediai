@@ -26,7 +26,7 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT } = require('./prompts');
 const db = require('./db');
 
 // ── Sous-traitants externes, isolés dans services/ (portabilité) ──────
@@ -1119,6 +1119,65 @@ app.get('/api/patients/:id/search', aiLimiter, requireAuth, enforceAiQuota, asyn
 // le cache garantit qu'elle n'appelle le modèle qu'après un vrai changement.
 // ?refresh=1 force la régénération.
 // ────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────
+// GET /api/patients/:id/timeline-narrative  (Smart Timeline)
+// Le dossier raconté par périodes. Caché (table timeline_narratives),
+// régénéré au changement d'événements. Purement descriptif/temporel.
+// Non décompté du quota (fonction toujours active) ; ?refresh=1 force.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/patients/:id/timeline-narrative', aiLimiter, requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const events = await db.listEventsByPatient(patient.id);
+    if (events.length < 2) {
+      return res.json({ success: true, periodes: [], empty: true });
+    }
+
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const cached = await db.getTimelineNarrative(patient.id);
+    if (!forceRefresh && cached && cached.source_events_count === events.length) {
+      return res.json({ success: true, periodes: (cached.data && cached.data.periodes) || [], cached: true });
+    }
+
+    // Chronologie compacte, ordre croissant, nom du patient tokenisé.
+    const lines = events.slice().reverse().map((e) => {
+      const date = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (e.type === 'consultation') return `${date} — Consultation : ${e.data.resume_1_ligne || e.title}`;
+      if (e.type === 'ordonnance') {
+        const meds = (e.data.prescriptions || []).map((p) => p.medicament).filter(Boolean).join(', ');
+        return `${date} — Ordonnance : ${meds || e.title}`;
+      }
+      if (e.type === 'courrier') return `${date} — Courrier : ${e.data.objet || e.title}`;
+      if (e.type === 'analyse_labo') return `${date} — Analyses : ${e.title}`;
+      if (e.type === 'imagerie') return `${date} — Imagerie : ${e.title}`;
+      return `${date} — ${e.type} : ${e.title}`;
+    });
+    let timelineText = lines.join('\n');
+    if (patient.prenom) timelineText = timelineText.split(patient.prenom).join('[PATIENT_PRENOM]');
+    if (patient.nom) timelineText = timelineText.split(patient.nom).join('[PATIENT_NOM]');
+
+    const { json, tokensUsed } = await callClaude({
+      system: TIMELINE_NARRATIVE_PROMPT.system,
+      user: TIMELINE_NARRATIVE_PROMPT.user(timelineText),
+      maxTokens: 1200,
+    });
+
+    let str = JSON.stringify(json);
+    if (patient.prenom) str = str.split('[PATIENT_PRENOM]').join(patient.prenom);
+    if (patient.nom) str = str.split('[PATIENT_NOM]').join(patient.nom);
+    const data = JSON.parse(str);
+
+    await db.saveTimelineNarrative({ patientId: patient.id, data, sourceEventsCount: events.length, tokensUsed });
+    return res.json({ success: true, periodes: data.periodes || [], cached: false });
+  } catch (err) {
+    console.error('[ERROR timeline-narrative]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la génération du récit de la chronologie' });
+  }
+});
+
 app.get('/api/patients/:id/snapshot', aiLimiter, requireAuth, async (req, res) => {
   try {
     const patient = await db.getPatientById(req.params.id);
@@ -1436,7 +1495,7 @@ app.get('/health', async (req, res) => {
   }
   res.json({
     status: 'ok',
-    version: '2.6.0',
+    version: '2.7.0',
     // Transparence : l'infra actuelle n'est PAS certifiée HDS. Tant que la
     // migration n'est pas faite, seules des données synthétiques sont
     // autorisées. Voir docs/10_SECURITY.md.

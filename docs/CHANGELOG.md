@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Patient Intelligence Workspace (4) : Smart Timeline narrative — 2026-07-17
+
+Backend + frontend. La chronologie du dossier devient un **récit par périodes**.
+
+### Ajouté
+- **Backend** : `GET /api/patients/:id/timeline-narrative` — récit du dossier regroupé en périodes (« Février – Avril : suivi régulier… »), généré par Claude sur une chronologie **anonymisée**, purement descriptif/temporel (aucun diagnostic). Prompt `TIMELINE_NARRATIVE_PROMPT`, table de cache `timeline_narratives` (régénérée au changement d'événements), non décompté du quota. `/health` → `2.7.0`.
+- **Frontend** : carte « ✨ Le récit du dossier » en tête de la chronologie du patient — narration verticale (période = point + titre + prose), mention IA. `fetchTimelineNarrative`/`renderTimelineNarrative`, `#timelineNarrative`. La frise détaillée filtrable existante est conservée sous le récit.
+
+### Déploiement
+- Déployer le **backend d'abord** (nouvel endpoint) ; le frontend masque proprement la carte si l'endpoint est absent.
+
+---
+
 ## [Non publié] — Intelligence Workspace (4) : Mode Focus — 2026-07-17
 
 Frontend uniquement (`mediai-site`).

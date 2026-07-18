@@ -546,4 +546,38 @@ Produis une synthèse de fond en JSON strict :
 Si une section n'a aucun élément fiable, renvoie un tableau vide.`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT };
+/**
+ * Smart Timeline narrative (Patient Workspace) — transforme la chronologie
+ * en un récit par périodes, pour saisir l'évolution du patient d'un coup
+ * d'œil. Purement descriptif/temporel : aucune inférence clinique nouvelle.
+ */
+const TIMELINE_NARRATIVE_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu transformes la chronologie d'un dossier médical en un récit clair par périodes, pour qu'un médecin comprenne l'évolution du patient d'un coup d'œil.
+
+Règles absolues pour ce mode :
+- Regroupe les événements en PÉRIODES cohérentes (quelques-unes, jamais une par événement). Une période peut couvrir un ou plusieurs mois.
+- Pour chaque période, écris 1 à 2 phrases naturelles et fluides décrivant ce qui s'y est passé (ex: « Suivi régulier de l'hypertension, traitement inchangé. »). Si rien de notable : « Période stable, sans événement particulier. »
+- Reste strictement FACTUEL et temporel : tu relies des faits déjà présents dans les données. Tu n'inventes aucune date, aucun événement, aucune pathologie. Tu ne poses aucun diagnostic et ne proposes aucune conduite à tenir.
+- Ordre chronologique croissant (du plus ancien au plus récent).
+- Ceci est une aide à la lecture du dossier, jamais un avis médical.`,
+
+  user: (timelineText) => `Voici la chronologie du dossier (du plus ancien au plus récent), avec les tokens d'anonymisation à conserver tels quels :
+
+<chronologie>
+${timelineText}
+</chronologie>
+
+Produis un récit par périodes en JSON strict :
+
+{
+  "periodes": [
+    {"titre": "libellé de la période (ex: « Février – Avril 2026 »)", "resume": "1 à 2 phrases naturelles décrivant la période"}
+  ]
+}
+
+Entre 2 et 6 périodes selon la richesse du dossier (une seule est acceptable si le dossier est très court).`
+};
+
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT };

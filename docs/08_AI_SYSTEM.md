@@ -67,6 +67,7 @@ Chaque prompt hérite de `BASE_SYSTEM` (sauf vigilance médicamenteuse) qui pose
 | `LAB_STRUCTURING_PROMPT` | `/api/analyse-labo/generate` | Structuration d'un CR de laboratoire |
 | `IMAGING_STRUCTURING_PROMPT` | `/api/imagerie/generate` | Structuration d'un CR d'imagerie |
 | `PATIENT_SNAPSHOT_PROMPT` | `/api/patients/:id/snapshot` | Couche IA du Patient Snapshot (Phase 5) — voir ci-dessous |
+| `TIMELINE_NARRATIVE_PROMPT` | `/api/patients/:id/timeline-narrative` | Récit du dossier par périodes (descriptif/temporel) — cache `timeline_narratives`, régénéré au changement d'événements |
 
 ### Garde-fous notables
 - **Interactions médicamenteuses** : ne signale que des interactions **largement documentées**, toujours formulées comme « à vérifier via source officielle » (jamais « contre-indiqué »), et rappelle systématiquement que ce n'est pas un avis pharmaceutique. En cas de doute → ne rien signaler plutôt qu'une fausse alerte.
