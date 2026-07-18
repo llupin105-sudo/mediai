@@ -4,6 +4,22 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Passe qualité & cohérence design — 2026-07-17
+
+Frontend uniquement (`mediai-site`). Audit de cohérence après les nombreux ajouts de l'Intelligence Workspace. Aucune régression fonctionnelle.
+
+### Corrigé (incohérences réelles)
+- **Palette PDF** : les 3 générateurs PDF (compte-rendu, courrier, ordonnance) utilisaient encore l'**ancienne palette verte/marine** (`[47,107,79]`…) alors que l'app est passée au bleu. Alignés sur la charte bleue officielle (bleu `[20,96,255]`, navy `[10,17,40]`, etc.) → les documents générés sont désormais cohérents avec l'app.
+- **Marque** : `index.html` mélangeait « MédiAI » (ancienne orthographe accentuée, 20×) et « MediAI ». Standardisé partout en **« MediAI »** (aligné doc + portail patient + logo). Titre de page corrigé.
+
+### Vérifié (conforme)
+- Aucune couleur de l'ancienne palette restante. Aucune police hors charte (Inter partout). Aucun `console.log` de debug côté frontend. Nouveaux composants responsive (grilles `auto-fit`/`minmax`, rail Insights en 1 colonne < 1000 px).
+
+### Dette tracée (non bloquante, [14_BACKLOG.md](14_BACKLOG.md))
+- Tokens `--sage*` (nom hérité, pointent vers le bleu) ; échelle d'espacement non tokenisée ; frontend monofichier ; agrégation des signaux côté client (envisager côté serveur à grande échelle). Typo mineure `patient.html` (« espace sante »).
+
+---
+
 ## [Non publié] — Patient Intelligence Workspace (3) : Colonne « Insights » — 2026-07-17
 
 Frontend uniquement (`mediai-site`). Le dossier patient devient un vrai **workspace deux colonnes**.
