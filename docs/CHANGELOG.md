@@ -4,6 +4,15 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Intelligence Workspace (4) : Mode Focus — 2026-07-17
+
+Frontend uniquement (`mediai-site`).
+
+### Ajouté
+- **Mode Focus consultation** : bascule sans distraction — la sidebar, la topbar et la cloche s'effacent (`body.focus-mode`), une barre minimale affiche le patient + « Quitter · Échap ». Entrée depuis un bouton dédié de la vue consultation, depuis ⌘K (« Mode Focus »), sortie par le bouton ou **Échap**. `enterFocusMode`/`exitFocusMode`/`toggleFocusMode`, `#focusBar`, `ensureFocusStyles`. Aucune fonctionnalité déplacée (bascule CSS pure) → zéro risque de casse du flux consultation.
+
+---
+
 ## [Non publié] — Intelligence Workspace (3) : Centre de notifications — 2026-07-17
 
 Frontend uniquement (`mediai-site`).
