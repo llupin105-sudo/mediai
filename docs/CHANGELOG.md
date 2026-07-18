@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Patient Intelligence Workspace (1) : Hero premium — 2026-07-17
+
+Frontend uniquement (`mediai-site`). Début de la refonte du dossier patient en « espace de compréhension ».
+
+### Ajouté / Modifié
+- **Hero d'intelligence patient premium** en tête du dossier (élève le hero du Cockpit) : grand avatar, nom, âge, **médecin référent**, dernière consultation, **badge de vigilance** (Élevée / À surveiller / Rien à signaler — dérivé des signaux, **pas un score de risque clinique**), et un **« coup d'œil »** de chiffres clés (traitements en cours, dernière TA, dernier poids, nombre d'événements). Carte premium (dégradé subtil, ombre légère, coins harmonieux). Helper `lastVital`.
+- Le badge de vigilance et le coup d'œil sont 100 % déterministes ; réutilisent `computePatientSignals` / `deriveTreatments` / `latestTension`.
+
+### Déjà présents dans le dossier (sprints précédents, à réorganiser dans la suite)
+- « Ce que MediAI comprend » = Patient Snapshot ; signaux ; évolution des constantes (sparklines) ; documents importants ; recherche clinique ; timeline. Prochains increments : graphiques de constantes premium, timeline narrative (IA), colonne « Insights », comparaison d'examens.
+
+---
+
 ## [Non publié] — Intelligence Workspace (2) : ⌘K premium + Quick Actions — 2026-07-17
 
 Frontend uniquement (`mediai-site`).
