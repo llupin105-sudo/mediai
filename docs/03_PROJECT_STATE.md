@@ -56,6 +56,11 @@
 - 🔄 **Sprint 4 — Signaux & alertes proactifs** (pilier « détecter ») : **4.1 livré** — moteur de détection déterministe (`computePatientSignals`), carte « Signaux détectés » en tête du Cockpit + panneau « Signaux cliniques » transversal sur le dashboard. 100 % déterministe (aucune IA, observations factuelles « à vérifier »). Restant : interactions sur tout le dossier, tendances de constantes, seuils réglables.
 - ⏭️ Différenciation patient · signaux avancés. → [11_ROADMAP.md](11_ROADMAP.md).
 
+**Sprint 6 — MediAI Cockpit (la Home devient le cerveau) — Lots 1 & 2 livrés (2026-07-19)**
+- ✅ **Lot 1 (backend)** : module métier `cockpit.js` (déterministe, testé — 29 tests au total), nouvelles tables (`appointments`, `tasks`, `workspace_layouts`, `message_threads`/`messages`, `cockpit_briefings`), API `GET /api/cockpit` + `/briefing` + CRUD RDV/Tâches/Workspace/Messagerie, prompt `COCKPIT_BRIEFING_PROMPT` (faits agrégés anonymisés, non-décisionnel).
+- ✅ **Lot 2 (frontend `app.html`)** : la Home devient un **cockpit** — barre de briefing IA (« à vérifier »), modes (Cockpit/Consultation/Cabinet/Visite/Urgences), widgets actionnables (agenda + création RDV, patients à regarder, tâches, résultats, renouvellements, recommandations IA, messages, activité), personnalisation `localStorage`.
+- ⏭️ Restant : **Lot 3** (workspace drag & drop + layouts serveur), **Lot 4** (inbox messagerie + portail patient + durées d'ordonnance structurées). ⚠️ **Déployer le backend AVANT le frontend** (le cockpit dégrade proprement sinon).
+
 Ordre validé pour la suite de la Phase 2 (frontend, en parallèle) :
 1. **Expérience patient différenciée** — donner à `patient.html` une identité visuelle propre, épurée, orientée « suivi de santé » (aujourd'hui il partage la palette médecin).
 2. **⌘K / recherche universelle** raffinée (Spotlight).

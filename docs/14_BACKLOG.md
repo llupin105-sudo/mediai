@@ -24,6 +24,11 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 | 12 | 🟠 | Coût du Patient Snapshot | Non décompté du quota : surveiller la consommation Claude (option : générer à la demande explicite pour le tier gratuit, ou débouncer). → [08_AI_SYSTEM.md](08_AI_SYSTEM.md). |
 | 13 | 🟢 | Édition manuelle du Snapshot | Aujourd'hui régénéré (lecture seule côté médecin). Permettre au médecin d'épingler/corriger des éléments (« l'IA propose, il décide »). |
 | 14 | 🟢 | Anonymisation du Snapshot | Utilise la tokenisation du nom (comme `resume-intelligent`), pas le pipeline `anonymize()` complet. Uniformiser si besoin. |
+| 15 | 🟠 | Cockpit Lot 3 — Workspace | Drag & drop + redimensionnement + layouts serveur multiples. Backend `workspace_layouts` + API déjà prêts (Sprint 6 Lot 1) ; reste le frontend. |
+| 16 | 🟠 | Cockpit Lot 4 — Messagerie | Inbox médecin complète + activation côté portail patient (`patient.html`). Fondations (`message_threads`/`messages` + API + widget compact) déjà en place. |
+| 17 | 🟠 | Durées d'ordonnance structurées | Capturer `duree_jours`/`renouvellements`/`date_debut` à la création d'ordonnance pour fiabiliser `computePrescriptionStatus` (aujourd'hui : repli sur le texte libre via `parseDelayToDays`). |
+| 18 | 🟢 | Coût du briefing cockpit | `GET /api/cockpit/briefing` appelle Claude (caché par signature des faits). Surveiller la consommation ; option debounce/à la demande pour le tier gratuit. |
+| 19 | 🟢 | Cockpit desktop-first | La grille de widgets passe à 1 colonne < 900px mais reste pensée desktop. Confort tablette à affiner. |
 
 ---
 

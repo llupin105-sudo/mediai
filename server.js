@@ -26,8 +26,11 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT } = require('./prompts');
 const db = require('./db');
+
+// ── Moteur métier du Cockpit (Sprint 6) — fonctions pures déterministes ──
+const cockpit = require('./cockpit');
 
 // ── Sous-traitants externes, isolés dans services/ (portabilité) ──────
 // Changer de fournisseur IA / transcription / email = modifier 1 fichier.
@@ -1339,6 +1342,474 @@ app.get('/api/patient/timeline', requirePatientAuth, async (req, res) => {
     return res.json({ events });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur lors de la récupération de la chronologie' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// COCKPIT (Sprint 6) — la Home devient le cerveau de MediAI
+// ════════════════════════════════════════════════════════════════════
+
+// Charge et regroupe les données nécessaires au cockpit d'un médecin.
+// Les événements sont regroupés par patient pour les calculs cross-dossier.
+async function loadCockpitData(medecinId) {
+  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(); dayEnd.setHours(23, 59, 59, 999);
+  const [events, appointments, tasks, unread, patientRows] = await Promise.all([
+    db.listEventsByMedecin(medecinId),
+    db.listAppointments(medecinId, { from: dayStart.toISOString(), to: dayEnd.toISOString() }),
+    db.listTasks(medecinId),
+    db.countUnreadMessagesForMedecin(medecinId),
+    db.listPatientsByMedecin(medecinId),
+  ]);
+
+  const byId = new Map();
+  for (const e of events) {
+    if (!byId.has(e.patient_id)) byId.set(e.patient_id, { id: e.patient_id, nom: e.patient_nom, prenom: e.patient_prenom, events: [] });
+    byId.get(e.patient_id).events.push(e);
+  }
+  const patients = [...byId.values()];
+  const nameById = new Map(patientRows.map((p) => [p.id, { nom: p.nom, prenom: p.prenom }]));
+  return { patients, appointments, tasks, unread, nameById };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/cockpit — agrégat déterministe complet de la journée.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/cockpit', requireAuth, async (req, res) => {
+  try {
+    const { patients, appointments, tasks, unread, nameById } = await loadCockpitData(req.medecin.id);
+    const facts = cockpit.buildCockpitFacts({ patients, appointments, tasks, unreadMessages: unread, now: Date.now() });
+
+    // Enrichit l'agenda avec le nom du patient (quand le RDV a un dossier).
+    facts.agenda = facts.agenda.map((a) => {
+      const n = a.patient_id ? nameById.get(a.patient_id) : null;
+      return { ...a, patient_nom: n ? `${n.prenom} ${n.nom}` : (a.patient_label || 'Sans dossier') };
+    });
+
+    return res.json({ success: true, cockpit: facts });
+  } catch (err) {
+    console.error('[ERROR cockpit]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors du chargement du cockpit' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/cockpit/briefing — récit IA du matin (caché, non décompté).
+// Ne reçoit que des FAITS AGRÉGÉS ANONYMISÉS. ?refresh=1 force.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/cockpit/briefing', aiLimiter, requireAuth, async (req, res) => {
+  try {
+    const { patients, appointments, tasks, unread } = await loadCockpitData(req.medecin.id);
+    const facts = cockpit.buildCockpitFacts({ patients, appointments, tasks, unreadMessages: unread, now: Date.now() });
+
+    // Anonymisation : chaque patient cité devient un token [PATIENT_n].
+    const tokenById = new Map();
+    let counter = 0;
+    const tok = (id, prenom, nom) => {
+      if (!id) return '[PATIENT_?]';
+      if (!tokenById.has(id)) { counter += 1; tokenById.set(id, { token: `[PATIENT_${counter}]`, name: `${prenom || ''} ${nom || ''}`.trim() }); }
+      return tokenById.get(id).token;
+    };
+
+    const lines = [];
+    lines.push(`Rendez-vous aujourd'hui : ${facts.agenda.length}.`);
+    lines.push(`Patients à regarder : ${facts.priorites.length} (dont ${facts.compteurs.urgents} prioritaire(s)).`);
+    for (const p of facts.priorites.slice(0, 8)) {
+      lines.push(`- ${tok(p.patient_id, p.prenom, p.nom)} : ${p.signals.map((s) => s.titre).join(' ; ')} [${p.severite}]`);
+    }
+    for (const r of facts.ordonnances_a_renouveler.slice(0, 6)) {
+      lines.push(`- ${tok(r.patient_id, r.prenom, r.nom)} : ordonnance à renouveler (${r.jours_restants} j).`);
+    }
+    for (const r of facts.resultats_recents.slice(0, 6)) {
+      lines.push(`- ${tok(r.patient_id, r.prenom, r.nom)} : résultat récent (${cockpit.TYPE_LABELS[r.type] || 'résultat'}).`);
+    }
+    lines.push(`Tâches ouvertes : ${facts.taches.compteurs.total} (dont ${facts.taches.compteurs.haute} prioritaires, ${facts.taches.compteurs.en_retard} en retard).`);
+    lines.push(`Messages non lus : ${facts.messages_non_lus}.`);
+    const factsText = lines.join('\n');
+
+    // Cache : régénéré uniquement si la signature des faits a changé.
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const cached = await db.getCockpitBriefing(req.medecin.id);
+    if (!forceRefresh && cached && cached.facts_signature === factsText) {
+      return res.json({ success: true, briefing: cached.data, cached: true, generated_at: cached.generated_at });
+    }
+
+    const { json, tokensUsed } = await callClaude({
+      system: COCKPIT_BRIEFING_PROMPT.system,
+      user: COCKPIT_BRIEFING_PROMPT.user(factsText),
+      maxTokens: 700,
+    });
+
+    // Résout les références patient (token → id) AVANT de restaurer les noms.
+    const idByToken = new Map([...tokenById.entries()].map(([id, v]) => [v.token, id]));
+    const recommandations = (json.recommandations || []).map((r) => ({
+      texte: r.texte || '',
+      patient_id: r.patient_ref && idByToken.has(r.patient_ref) ? idByToken.get(r.patient_ref) : null,
+      action: r.action || 'aucune',
+    }));
+
+    // Restaure les vrais noms dans les textes affichés.
+    const restore = (str) => {
+      let s = String(str || '');
+      for (const { token, name } of tokenById.values()) if (name) s = s.split(token).join(name);
+      return s;
+    };
+    const briefing = {
+      recit: restore(json.recit),
+      recommandations: recommandations.map((r) => ({ ...r, texte: restore(r.texte) })),
+    };
+
+    await db.saveCockpitBriefing({ medecinId: req.medecin.id, data: briefing, factsSignature: factsText, tokensUsed });
+    return res.json({ success: true, briefing, cached: false });
+  } catch (err) {
+    console.error('[ERROR cockpit briefing]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la génération du briefing' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// RENDEZ-VOUS (Sprint 6 — module agenda)
+// ════════════════════════════════════════════════════════════════════
+const APPT_MODES = ['cabinet', 'visite', 'teleconsultation'];
+const APPT_STATUS = ['planifie', 'confirme', 'en_salle', 'termine', 'annule', 'absent'];
+
+app.get('/api/appointments', requireAuth, async (req, res) => {
+  try {
+    const items = await db.listAppointments(req.medecin.id, { from: req.query.from, to: req.query.to });
+    return res.json({ items });
+  } catch (err) {
+    console.error('[ERROR appointments list]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la récupération des rendez-vous' });
+  }
+});
+
+app.post('/api/appointments', requireAuth, async (req, res) => {
+  const { patientId, patientLabel, startAt, endAt, motif, mode, notes } = req.body;
+  if (!startAt || isNaN(new Date(startAt).getTime())) {
+    return res.status(400).json({ error: 'Date de rendez-vous invalide' });
+  }
+  try {
+    // Si un dossier est rattaché, vérifie qu'il appartient bien au médecin.
+    if (patientId) {
+      const patient = await db.getPatientById(patientId);
+      if (!patient || patient.medecin_id !== req.medecin.id) {
+        return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
+      }
+    }
+    const appt = await db.createAppointment({
+      id: crypto.randomUUID(),
+      medecinId: req.medecin.id,
+      patientId: patientId || null,
+      patientLabel: patientLabel || '',
+      startAt, endAt: endAt || null,
+      motif: motif || '',
+      mode: APPT_MODES.includes(mode) ? mode : 'cabinet',
+      status: 'planifie',
+      notes: notes || '',
+    });
+    return res.json({ success: true, appointment: appt });
+  } catch (err) {
+    console.error('[ERROR appointment create]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la création du rendez-vous' });
+  }
+});
+
+app.put('/api/appointments/:id', requireAuth, async (req, res) => {
+  try {
+    const existing = await db.getAppointmentById(req.params.id);
+    if (!existing || existing.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Rendez-vous introuvable' });
+    }
+    const fields = {};
+    const { patientLabel, startAt, endAt, motif, mode, status, notes } = req.body;
+    if (patientLabel !== undefined) fields.patient_label = patientLabel;
+    if (startAt !== undefined) fields.start_at = startAt;
+    if (endAt !== undefined) fields.end_at = endAt;
+    if (motif !== undefined) fields.motif = motif;
+    if (mode !== undefined && APPT_MODES.includes(mode)) fields.mode = mode;
+    if (status !== undefined && APPT_STATUS.includes(status)) fields.status = status;
+    if (notes !== undefined) fields.notes = notes;
+    const updated = await db.updateAppointment(req.params.id, fields);
+    return res.json({ success: true, appointment: updated });
+  } catch (err) {
+    console.error('[ERROR appointment update]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la mise à jour du rendez-vous' });
+  }
+});
+
+app.delete('/api/appointments/:id', requireAuth, async (req, res) => {
+  try {
+    const existing = await db.getAppointmentById(req.params.id);
+    if (!existing || existing.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Rendez-vous introuvable' });
+    }
+    await db.deleteAppointment(req.params.id);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ERROR appointment delete]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la suppression du rendez-vous' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// TÂCHES (Sprint 6 — moteur de tâches)
+// ════════════════════════════════════════════════════════════════════
+const TASK_STATUS = ['a_faire', 'en_cours', 'fait', 'reporte'];
+const TASK_PRIORITY = ['haute', 'moyenne', 'basse'];
+
+app.get('/api/tasks', requireAuth, async (req, res) => {
+  try {
+    const status = TASK_STATUS.includes(req.query.status) ? req.query.status : null;
+    const items = await db.listTasks(req.medecin.id, status);
+    return res.json({ items });
+  } catch (err) {
+    console.error('[ERROR tasks list]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la récupération des tâches' });
+  }
+});
+
+app.post('/api/tasks', requireAuth, async (req, res) => {
+  const { patientId, title, description, type, priority, dueDate } = req.body;
+  if (!title || !title.trim()) {
+    return res.status(400).json({ error: 'Intitulé de tâche requis' });
+  }
+  try {
+    if (patientId) {
+      const patient = await db.getPatientById(patientId);
+      if (!patient || patient.medecin_id !== req.medecin.id) {
+        return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
+      }
+    }
+    const task = await db.createTask({
+      id: crypto.randomUUID(),
+      medecinId: req.medecin.id,
+      patientId: patientId || null,
+      title: title.trim(),
+      description: description || '',
+      type: type || 'personnalise',
+      priority: TASK_PRIORITY.includes(priority) ? priority : 'moyenne',
+      status: 'a_faire',
+      dueDate: dueDate || null,
+      source: 'manuel',
+    });
+    return res.json({ success: true, task });
+  } catch (err) {
+    console.error('[ERROR task create]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la création de la tâche' });
+  }
+});
+
+app.put('/api/tasks/:id', requireAuth, async (req, res) => {
+  try {
+    const existing = await db.getTaskById(req.params.id);
+    if (!existing || existing.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    const fields = {};
+    const { title, description, type, priority, status, dueDate } = req.body;
+    if (title !== undefined) fields.title = title;
+    if (description !== undefined) fields.description = description;
+    if (type !== undefined) fields.type = type;
+    if (priority !== undefined && TASK_PRIORITY.includes(priority)) fields.priority = priority;
+    if (status !== undefined && TASK_STATUS.includes(status)) fields.status = status;
+    if (dueDate !== undefined) fields.due_date = dueDate;
+    const updated = await db.updateTask(req.params.id, fields);
+    return res.json({ success: true, task: updated });
+  } catch (err) {
+    console.error('[ERROR task update]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la mise à jour de la tâche' });
+  }
+});
+
+app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
+  try {
+    const existing = await db.getTaskById(req.params.id);
+    if (!existing || existing.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    await db.deleteTask(req.params.id);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ERROR task delete]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la suppression de la tâche' });
+  }
+});
+
+// POST /api/tasks/sync-signals — matérialise en tâches les signaux
+// déterministes cross-dossier (dédupliqués par source_ref).
+app.post('/api/tasks/sync-signals', requireAuth, async (req, res) => {
+  try {
+    const events = await db.listEventsByMedecin(req.medecin.id);
+    const byId = new Map();
+    for (const e of events) {
+      if (!byId.has(e.patient_id)) byId.set(e.patient_id, { id: e.patient_id, nom: e.patient_nom, prenom: e.patient_prenom, events: [] });
+      byId.get(e.patient_id).events.push(e);
+    }
+    const flagged = cockpit.computeCrossPatientSignals([...byId.values()]);
+    const existing = await db.listTasks(req.medecin.id);
+    const candidates = cockpit.materializeSystemTasks(flagged, existing);
+
+    let created = 0;
+    for (const c of candidates) {
+      const task = await db.createTask({
+        id: crypto.randomUUID(),
+        medecinId: req.medecin.id,
+        patientId: c.patient_id,
+        title: c.title,
+        description: c.description,
+        type: c.type,
+        priority: c.priority,
+        status: 'a_faire',
+        source: 'systeme',
+        sourceRef: c.source_ref,
+      });
+      if (task) created += 1;
+    }
+    return res.json({ success: true, created });
+  } catch (err) {
+    console.error('[ERROR tasks sync-signals]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la synchronisation des tâches' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// WORKSPACE (Sprint 6 — layouts personnalisables)
+// ════════════════════════════════════════════════════════════════════
+app.get('/api/workspace/layouts', requireAuth, async (req, res) => {
+  try {
+    const items = await db.listWorkspaceLayouts(req.medecin.id);
+    return res.json({ items });
+  } catch (err) {
+    console.error('[ERROR workspace list]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la récupération des espaces de travail' });
+  }
+});
+
+app.post('/api/workspace/layouts', requireAuth, async (req, res) => {
+  const { name, mode, layout, isDefault } = req.body;
+  if (!Array.isArray(layout)) {
+    return res.status(400).json({ error: 'Layout invalide' });
+  }
+  try {
+    const created = await db.createWorkspaceLayout({
+      id: crypto.randomUUID(),
+      medecinId: req.medecin.id,
+      name: (name || 'Mon espace').slice(0, 80),
+      mode: mode || 'custom',
+      layout,
+      isDefault: !!isDefault,
+    });
+    return res.json({ success: true, layout: created });
+  } catch (err) {
+    console.error('[ERROR workspace create]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de la création de l'espace de travail" });
+  }
+});
+
+app.put('/api/workspace/layouts/:id', requireAuth, async (req, res) => {
+  try {
+    const existing = await db.getWorkspaceLayoutById(req.params.id);
+    if (!existing || existing.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Espace de travail introuvable' });
+    }
+    const { name, mode, layout, isDefault } = req.body;
+    if (layout !== undefined && !Array.isArray(layout)) {
+      return res.status(400).json({ error: 'Layout invalide' });
+    }
+    const updated = await db.updateWorkspaceLayout(req.params.id, {
+      name: name !== undefined ? name.slice(0, 80) : undefined, mode, layout, isDefault,
+    });
+    return res.json({ success: true, layout: updated });
+  } catch (err) {
+    console.error('[ERROR workspace update]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de la mise à jour de l'espace de travail" });
+  }
+});
+
+app.delete('/api/workspace/layouts/:id', requireAuth, async (req, res) => {
+  try {
+    const existing = await db.getWorkspaceLayoutById(req.params.id);
+    if (!existing || existing.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Espace de travail introuvable' });
+    }
+    await db.deleteWorkspaceLayout(req.params.id);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ERROR workspace delete]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de la suppression de l'espace de travail" });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// MESSAGERIE (Sprint 6 — fondations, côté médecin)
+// ════════════════════════════════════════════════════════════════════
+app.get('/api/threads', requireAuth, async (req, res) => {
+  try {
+    const items = await db.listThreadsByMedecin(req.medecin.id);
+    return res.json({ items });
+  } catch (err) {
+    console.error('[ERROR threads list]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la récupération des conversations' });
+  }
+});
+
+app.post('/api/threads', requireAuth, async (req, res) => {
+  const { patientId, subject } = req.body;
+  if (!patientId) return res.status(400).json({ error: 'Patient requis' });
+  try {
+    const patient = await db.getPatientById(patientId);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(403).json({ error: 'Patient introuvable ou accès refusé' });
+    }
+    const thread = await db.createThread({ id: crypto.randomUUID(), medecinId: req.medecin.id, patientId, subject: subject || '' });
+    return res.json({ success: true, thread });
+  } catch (err) {
+    console.error('[ERROR thread create]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la création de la conversation' });
+  }
+});
+
+app.get('/api/threads/:id/messages', requireAuth, async (req, res) => {
+  try {
+    const thread = await db.getThreadById(req.params.id);
+    if (!thread || thread.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Conversation introuvable' });
+    }
+    const messages = await db.listMessages(thread.id);
+    return res.json({ thread, messages });
+  } catch (err) {
+    console.error('[ERROR thread messages]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
+  }
+});
+
+app.post('/api/threads/:id/messages', requireAuth, async (req, res) => {
+  const { body } = req.body;
+  if (!body || !body.trim()) return res.status(400).json({ error: 'Message vide' });
+  try {
+    const thread = await db.getThreadById(req.params.id);
+    if (!thread || thread.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Conversation introuvable' });
+    }
+    const message = await db.addMessage({ id: crypto.randomUUID(), threadId: thread.id, senderType: 'medecin', body: body.trim() });
+    return res.json({ success: true, message });
+  } catch (err) {
+    console.error('[ERROR message create]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de l'envoi du message" });
+  }
+});
+
+app.post('/api/threads/:id/read', requireAuth, async (req, res) => {
+  try {
+    const thread = await db.getThreadById(req.params.id);
+    if (!thread || thread.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Conversation introuvable' });
+    }
+    await db.markThreadReadByMedecin(thread.id);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ERROR thread read]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors du marquage comme lu' });
   }
 });
 

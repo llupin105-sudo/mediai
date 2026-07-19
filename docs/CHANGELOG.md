@@ -4,6 +4,51 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Nouvelle porte d'entrée : la landing premium devient l'accueil officiel — 2026-07-19
+
+Frontend (`mediai-site`). Restructuration de l'entrée du produit, **sans perte de fonctionnalité** (l'application médecin est strictement inchangée). Vérifié en local (serveur statique + navigateur).
+
+### Modifié
+- **Suppression de l'ancien mini-site marketing intégré à `app.html`** (nav + hero « Racontez la consultation / Dictez votre consultation » + sections features/tarifs/footer). Cette « ancienne page » n'était pas un fichier séparé mais du markup affiché en mode déconnecté ; elle **n'apparaît plus**.
+- **`/app` ouvre directement l'écran de connexion** (modal d'auth réutilisé, présenté plein écran, non refermable tant qu'on n'est pas connecté, avec lien « ← Retour à l'accueil » → `/`). Un jeton valide entre directement dans l'app (`enterAppMode`).
+- **Paramètre `?mode`** : `/app?mode=login` (onglet connexion), `/app?mode=signup` (onglet création de compte).
+- **Landing `index.html`** : « Se connecter » → `/app?mode=login`, « Demander une démo » → `/app?mode=signup` (liens relatifs, indépendants du domaine). Les autres liens restent des ancres internes.
+- `README.md` (mediai-site) mis à jour (arborescence des routes).
+
+### Inchangé (non-régression vérifiée)
+- Coquille applicative (sidebar, cockpit, patients, consultation, IA, portail), logique d'auth (`submitAuth`/Google), retour Stripe (`/app?checkout=success`), voie d'abonnement (paywall quota) — tous préservés. `startCheckout()` conservé (le `#upgradeBtn` retiré n'y était pas utilisé).
+
+### Route finale
+`/` → landing premium · `/app` → connexion → application · `/patient` → portail. Flux : **Landing premium → Connexion → Application**.
+
+---
+
+## [Non publié] — Sprint 6 · MediAI Cockpit (Lots 1 & 2) — 2026-07-19
+
+La Home devient le **cerveau de MediAI** : un cockpit où l'information vient au médecin (agenda, priorités, tâches, résultats, renouvellements, recommandations IA), personnalisable par modes. **Backend d'abord** — déployer le backend avant le frontend (le cockpit dégrade proprement si l'endpoint manque). Aucun commit (consigne de sprint).
+
+### Ajouté — Backend (Lot 1)
+- **Nouveau module métier `cockpit.js`** (fonctions PURES, déterministes, testées) : `computeCrossPatientSignals`, `computePrescriptionStatus` (moteur d'expiration d'ordonnance), `buildAgenda`, `buildRenewals`, `buildRecentResults`, `materializeSystemTasks`, `buildCockpitFacts`. Reproduit fidèlement la logique de signaux du frontend.
+- **Nouvelles tables** (`db.js`, `initDb` idempotent) : `appointments` (rendez-vous), `tasks` (moteur de tâches, index unique partiel anti-doublon sur `source_ref`), `workspace_layouts` (workspace persistant), `message_threads` + `messages` (messagerie), `cockpit_briefings` (cache du récit IA).
+- **Nouvelles API** : `GET /api/cockpit` (agrégat déterministe), `GET /api/cockpit/briefing` (récit IA caché, anonymisé, non décompté) ; CRUD `appointments`, `tasks` (+ `POST /api/tasks/sync-signals`), `workspace/layouts`, `threads`/`messages`. Toutes sous `requireAuth` + vérification `medecin_id`.
+- **Prompt `COCKPIT_BRIEFING_PROMPT`** : ne reçoit QUE des faits agrégés anonymisés (tokens `[PATIENT_n]`), rend un récit + des **suggestions** (jamais de décision). `/health` → `2.7.0` (inchangé).
+- **Tests** : `test/cockpit.test.js` (9 tests) — expiration, signaux, dédup, agrégats. Total : **29 tests** au vert.
+
+### Ajouté — Frontend (Lot 2, `mediai-site/app.html`)
+- La vue `dashboard` devient un **cockpit** : barre de briefing IA (« ✨ à vérifier »), **sélecteur de modes** (Cockpit / Consultation / Cabinet / Visite / Urgences), grille de **widgets** actionnables : Agenda du jour (+ création de RDV), Patients à regarder, Tâches (cocher / créer / « ↻ Signaux »), Résultats récents, Ordonnances à renouveler, Recommandations IA, Messages (fil compact), Activité récente.
+- **Personnalisation légère** (Lot 2) : masquer/réafficher et réordonner les widgets, choix de mode — persistés en `localStorage`. Le drag & drop / redimensionnement / layouts serveur multiples arrivent au **Lot 3**.
+- `renderDashboard()` réorchestré (cockpit) ; anciennes fonctions `renderIntelligentHome`/`renderDashboardSignals`/`computeDayFacts` conservées mais superséd­ées.
+
+### Garde-fous (règle d'or tenue)
+- Aucune donnée médicale inventée : agenda/tâches/messages = **saisis** ; priorités/renouvellements/résultats = **déterministes** ; récit IA = **suggestions anonymisées** marquées « à vérifier ».
+- Additif et non destructif : auth, Stripe, génération de compte-rendu, fiche patient, portail **inchangés**.
+
+### Reste (Lots 3 & 4)
+- **Lot 3** : workspace drag & drop + redimensionnement + layouts serveur (`workspace_layouts` déjà prêt).
+- **Lot 4** : inbox messagerie complète + activation côté portail patient ; capture des durées structurées d'ordonnance à la création (`duree_jours`/`renouvellements`) pour fiabiliser le moteur d'expiration.
+
+---
+
 ## [Non publié] — Routage production : landing en page d'accueil — 2026-07-17
 
 Frontend (`mediai-site`). Réorganisation domain-agnostic, déployée.

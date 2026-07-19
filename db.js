@@ -159,6 +159,109 @@ async function initDb() {
     );
   `);
 
+  // ── Rendez-vous (Sprint 6 — module agenda) ───────────────────────
+  // patient_id NULL autorisé : créneau pour un patient pas encore créé
+  // (on garde alors patient_label, un simple nom libre). Aucune donnée
+  // médicale ici — uniquement de la planification saisie par le médecin.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS appointments (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+      patient_label TEXT DEFAULT '',
+      start_at TIMESTAMPTZ NOT NULL,
+      end_at TIMESTAMPTZ,
+      motif TEXT DEFAULT '',
+      mode TEXT NOT NULL DEFAULT 'cabinet',
+      status TEXT NOT NULL DEFAULT 'planifie',
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_appointments_medecin ON appointments(medecin_id, start_at);`);
+
+  // ── Tâches (Sprint 6 — moteur de tâches) ─────────────────────────
+  // source = 'manuel' | 'ia' | 'systeme'. Les tâches 'systeme' sont
+  // matérialisées depuis les signaux déterministes, dédupliquées par
+  // source_ref. L'IA ne fait que PROPOSER (source='ia'), jamais valider.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      type TEXT NOT NULL DEFAULT 'personnalise',
+      priority TEXT NOT NULL DEFAULT 'moyenne',
+      status TEXT NOT NULL DEFAULT 'a_faire',
+      due_date TIMESTAMPTZ,
+      source TEXT NOT NULL DEFAULT 'manuel',
+      source_ref TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      completed_at TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_tasks_medecin ON tasks(medecin_id, status, due_date);`);
+  // Anti-doublon des tâches système : une seule tâche ouverte par source_ref/médecin.
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_source_ref ON tasks(medecin_id, source_ref) WHERE source_ref IS NOT NULL;`);
+
+  // ── Workspace personnalisable (Sprint 6) ─────────────────────────
+  // Un médecin peut sauvegarder plusieurs layouts (modes). layout = JSONB
+  // décrivant l'ordre/taille/visibilité de chaque widget du cockpit.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workspace_layouts (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT 'Mon espace',
+      mode TEXT NOT NULL DEFAULT 'cockpit',
+      layout JSONB NOT NULL DEFAULT '[]'::jsonb,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_workspace_medecin ON workspace_layouts(medecin_id);`);
+
+  // ── Messagerie sécurisée (Sprint 6 — fondations) ─────────────────
+  // Contenu 100% rédigé par les utilisateurs (médecin/patient), jamais
+  // généré. Un fil est rattaché à un dossier patient.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS message_threads (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      subject TEXT DEFAULT '',
+      last_message_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id UUID PRIMARY KEY,
+      thread_id UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
+      sender_type TEXT NOT NULL,
+      body TEXT NOT NULL,
+      read_by_medecin_at TIMESTAMPTZ,
+      read_by_patient_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id, created_at);`);
+
+  // ── Cache du briefing IA du cockpit (Sprint 6) ───────────────────
+  // Une ligne par médecin : récit + recommandations, régénérés quand la
+  // signature des faits du jour change (facts_signature). Évite de
+  // rappeler le modèle à chaque ouverture de la Home.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cockpit_briefings (
+      medecin_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      data JSONB NOT NULL,
+      facts_signature TEXT NOT NULL DEFAULT '',
+      tokens_used INTEGER,
+      generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   console.log('DEBUG - Base de données : tables vérifiées/créées avec succès');
 }
 
@@ -402,6 +505,240 @@ async function logAudit({ id, method, path, ip, userEmail, requestId }) {
   }
 }
 
+// ── Événements — vue transversale (tous les patients d'un médecin) ──
+// Pour le cockpit : on récupère tous les événements avec le nom du patient,
+// afin de calculer les signaux/priorités cross-dossier en une requête.
+async function listEventsByMedecin(medecinId) {
+  const result = await pool.query(
+    `SELECT e.*, p.nom AS patient_nom, p.prenom AS patient_prenom
+       FROM medical_events e JOIN patients p ON p.id = e.patient_id
+      WHERE e.medecin_id = $1 ORDER BY e.event_date DESC`,
+    [medecinId]
+  );
+  return result.rows;
+}
+
+// ── Rendez-vous ───────────────────────────────────────────────────
+
+async function createAppointment({ id, medecinId, patientId, patientLabel, startAt, endAt, motif, mode, status, notes }) {
+  const result = await pool.query(
+    `INSERT INTO appointments (id, medecin_id, patient_id, patient_label, start_at, end_at, motif, mode, status, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [id, medecinId, patientId || null, patientLabel || '', startAt, endAt || null, motif || '', mode || 'cabinet', status || 'planifie', notes || '']
+  );
+  return result.rows[0];
+}
+
+async function listAppointments(medecinId, { from, to } = {}) {
+  const clauses = ['medecin_id = $1'];
+  const params = [medecinId];
+  if (from) { params.push(from); clauses.push(`start_at >= $${params.length}`); }
+  if (to) { params.push(to); clauses.push(`start_at <= $${params.length}`); }
+  const result = await pool.query(
+    `SELECT * FROM appointments WHERE ${clauses.join(' AND ')} ORDER BY start_at ASC`,
+    params
+  );
+  return result.rows;
+}
+
+async function getAppointmentById(id) {
+  const result = await pool.query(`SELECT * FROM appointments WHERE id = $1`, [id]);
+  return result.rows[0] || null;
+}
+
+async function updateAppointment(id, fields) {
+  const allowed = ['patient_id', 'patient_label', 'start_at', 'end_at', 'motif', 'mode', 'status', 'notes'];
+  const sets = [], params = [];
+  for (const key of allowed) {
+    if (fields[key] !== undefined) { params.push(fields[key]); sets.push(`${key} = $${params.length}`); }
+  }
+  if (!sets.length) return getAppointmentById(id);
+  params.push(id);
+  const result = await pool.query(
+    `UPDATE appointments SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+    params
+  );
+  return result.rows[0] || null;
+}
+
+async function deleteAppointment(id) {
+  await pool.query(`DELETE FROM appointments WHERE id = $1`, [id]);
+}
+
+// ── Tâches ────────────────────────────────────────────────────────
+
+async function createTask({ id, medecinId, patientId, title, description, type, priority, status, dueDate, source, sourceRef }) {
+  const result = await pool.query(
+    `INSERT INTO tasks (id, medecin_id, patient_id, title, description, type, priority, status, due_date, source, source_ref)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     ON CONFLICT (medecin_id, source_ref) WHERE source_ref IS NOT NULL DO NOTHING
+     RETURNING *`,
+    [id, medecinId, patientId || null, title, description || '', type || 'personnalise', priority || 'moyenne', status || 'a_faire', dueDate || null, source || 'manuel', sourceRef || null]
+  );
+  return result.rows[0] || null;
+}
+
+async function listTasks(medecinId, status) {
+  if (status) {
+    const result = await pool.query(
+      `SELECT * FROM tasks WHERE medecin_id = $1 AND status = $2 ORDER BY due_date NULLS LAST, created_at DESC`,
+      [medecinId, status]
+    );
+    return result.rows;
+  }
+  const result = await pool.query(
+    `SELECT * FROM tasks WHERE medecin_id = $1 ORDER BY due_date NULLS LAST, created_at DESC`,
+    [medecinId]
+  );
+  return result.rows;
+}
+
+async function getTaskById(id) {
+  const result = await pool.query(`SELECT * FROM tasks WHERE id = $1`, [id]);
+  return result.rows[0] || null;
+}
+
+async function updateTask(id, fields) {
+  const allowed = ['title', 'description', 'type', 'priority', 'status', 'due_date'];
+  const sets = [], params = [];
+  for (const key of allowed) {
+    if (fields[key] !== undefined) { params.push(fields[key]); sets.push(`${key} = $${params.length}`); }
+  }
+  // Horodatage de complétion cohérent avec le statut.
+  if (fields.status === 'fait') sets.push(`completed_at = now()`);
+  else if (fields.status !== undefined) sets.push(`completed_at = NULL`);
+  if (!sets.length) return getTaskById(id);
+  params.push(id);
+  const result = await pool.query(
+    `UPDATE tasks SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+    params
+  );
+  return result.rows[0] || null;
+}
+
+async function deleteTask(id) {
+  await pool.query(`DELETE FROM tasks WHERE id = $1`, [id]);
+}
+
+// ── Workspace ─────────────────────────────────────────────────────
+
+async function listWorkspaceLayouts(medecinId) {
+  const result = await pool.query(
+    `SELECT * FROM workspace_layouts WHERE medecin_id = $1 ORDER BY created_at ASC`,
+    [medecinId]
+  );
+  return result.rows;
+}
+
+async function createWorkspaceLayout({ id, medecinId, name, mode, layout, isDefault }) {
+  const result = await pool.query(
+    `INSERT INTO workspace_layouts (id, medecin_id, name, mode, layout, is_default)
+     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+    [id, medecinId, name || 'Mon espace', mode || 'cockpit', JSON.stringify(layout || []), !!isDefault]
+  );
+  return result.rows[0];
+}
+
+async function getWorkspaceLayoutById(id) {
+  const result = await pool.query(`SELECT * FROM workspace_layouts WHERE id = $1`, [id]);
+  return result.rows[0] || null;
+}
+
+async function updateWorkspaceLayout(id, { name, mode, layout, isDefault }) {
+  const sets = ['updated_at = now()'], params = [];
+  if (name !== undefined) { params.push(name); sets.push(`name = $${params.length}`); }
+  if (mode !== undefined) { params.push(mode); sets.push(`mode = $${params.length}`); }
+  if (layout !== undefined) { params.push(JSON.stringify(layout)); sets.push(`layout = $${params.length}`); }
+  if (isDefault !== undefined) { params.push(!!isDefault); sets.push(`is_default = $${params.length}`); }
+  params.push(id);
+  const result = await pool.query(
+    `UPDATE workspace_layouts SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+    params
+  );
+  return result.rows[0] || null;
+}
+
+async function deleteWorkspaceLayout(id) {
+  await pool.query(`DELETE FROM workspace_layouts WHERE id = $1`, [id]);
+}
+
+// ── Messagerie ────────────────────────────────────────────────────
+
+async function countUnreadMessagesForMedecin(medecinId) {
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM messages m
+       JOIN message_threads t ON t.id = m.thread_id
+      WHERE t.medecin_id = $1 AND m.sender_type = 'patient' AND m.read_by_medecin_at IS NULL`,
+    [medecinId]
+  );
+  return result.rows[0]?.n || 0;
+}
+
+async function listThreadsByMedecin(medecinId) {
+  const result = await pool.query(
+    `SELECT t.*, p.nom AS patient_nom, p.prenom AS patient_prenom,
+       (SELECT COUNT(*)::int FROM messages m WHERE m.thread_id = t.id AND m.sender_type='patient' AND m.read_by_medecin_at IS NULL) AS unread
+       FROM message_threads t JOIN patients p ON p.id = t.patient_id
+      WHERE t.medecin_id = $1 ORDER BY t.last_message_at DESC`,
+    [medecinId]
+  );
+  return result.rows;
+}
+
+async function getThreadById(id) {
+  const result = await pool.query(`SELECT * FROM message_threads WHERE id = $1`, [id]);
+  return result.rows[0] || null;
+}
+
+async function createThread({ id, medecinId, patientId, subject }) {
+  const result = await pool.query(
+    `INSERT INTO message_threads (id, medecin_id, patient_id, subject) VALUES ($1,$2,$3,$4) RETURNING *`,
+    [id, medecinId, patientId, subject || '']
+  );
+  return result.rows[0];
+}
+
+async function listMessages(threadId) {
+  const result = await pool.query(`SELECT * FROM messages WHERE thread_id = $1 ORDER BY created_at ASC`, [threadId]);
+  return result.rows;
+}
+
+async function addMessage({ id, threadId, senderType, body }) {
+  const result = await pool.query(
+    `INSERT INTO messages (id, thread_id, sender_type, body) VALUES ($1,$2,$3,$4) RETURNING *`,
+    [id, threadId, senderType, body]
+  );
+  await pool.query(`UPDATE message_threads SET last_message_at = now() WHERE id = $1`, [threadId]);
+  return result.rows[0];
+}
+
+async function markThreadReadByMedecin(threadId) {
+  await pool.query(
+    `UPDATE messages SET read_by_medecin_at = now() WHERE thread_id = $1 AND sender_type='patient' AND read_by_medecin_at IS NULL`,
+    [threadId]
+  );
+}
+
+// ── Cache du briefing IA du cockpit ───────────────────────────────
+
+async function getCockpitBriefing(medecinId) {
+  const result = await pool.query(`SELECT * FROM cockpit_briefings WHERE medecin_id = $1`, [medecinId]);
+  return result.rows[0] || null;
+}
+
+async function saveCockpitBriefing({ medecinId, data, factsSignature, tokensUsed }) {
+  const result = await pool.query(
+    `INSERT INTO cockpit_briefings (medecin_id, data, facts_signature, tokens_used, generated_at)
+     VALUES ($1,$2,$3,$4, now())
+     ON CONFLICT (medecin_id) DO UPDATE
+       SET data = EXCLUDED.data, facts_signature = EXCLUDED.facts_signature,
+           tokens_used = EXCLUDED.tokens_used, generated_at = now()
+     RETURNING *`,
+    [medecinId, JSON.stringify(data), factsSignature || '', tokensUsed || null]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   pool,
   initDb,
@@ -427,4 +764,30 @@ module.exports = {
   getTimelineNarrative,
   saveTimelineNarrative,
   logAudit,
+  // Sprint 6 — Cockpit, RDV, tâches, workspace, messagerie
+  listEventsByMedecin,
+  createAppointment,
+  listAppointments,
+  getAppointmentById,
+  updateAppointment,
+  deleteAppointment,
+  createTask,
+  listTasks,
+  getTaskById,
+  updateTask,
+  deleteTask,
+  listWorkspaceLayouts,
+  createWorkspaceLayout,
+  getWorkspaceLayoutById,
+  updateWorkspaceLayout,
+  deleteWorkspaceLayout,
+  countUnreadMessagesForMedecin,
+  listThreadsByMedecin,
+  getThreadById,
+  createThread,
+  listMessages,
+  addMessage,
+  markThreadReadByMedecin,
+  getCockpitBriefing,
+  saveCockpitBriefing,
 };

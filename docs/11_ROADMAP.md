@@ -45,6 +45,15 @@ Le saut de qualité qui distingue MediAI : passer de « structurer une consultat
 4. **Signaux & alertes** — détection proactive (suivis en retard, interactions sur tout le dossier, tendances).
 5. **Différenciation patient & finitions.**
 
+## 🧭 Sprint 6 — MediAI Cockpit (la Home devient le cerveau) — EN COURS
+
+La Home cesse d'être une page d'accueil : elle devient un **cockpit** où l'information vient au médecin. Construit sur de **vrais systèmes** (RDV, tâches, moteur d'expiration d'ordonnance, workspace, messagerie), jamais sur du faux.
+
+1. ✅ **Lot 1 — Fondations backend** : module `cockpit.js` (déterministe, testé), tables `appointments`/`tasks`/`workspace_layouts`/messagerie/`cockpit_briefings`, API cockpit + CRUD, prompt de briefing IA anonymisé.
+2. ✅ **Lot 2 — Cockpit frontend** : barre de briefing, modes (Cockpit/Consultation/Cabinet/Visite/Urgences), widgets actionnables (agenda, priorités, tâches, résultats, renouvellements, recommandations IA, messages, activité), personnalisation `localStorage`.
+3. ⏭️ **Lot 3 — Workspace** : drag & drop, redimensionnement, layouts serveur multiples.
+4. ⏭️ **Lot 4 — Messagerie** : inbox complète + côté portail patient ; durées d'ordonnance structurées à la saisie.
+
 ## 🔒 Étape HDS — Conformité (avant toute bêta avec de vrais patients)
 
 Bloqueur absolu. Migration hébergement HDS + transcription auto-hébergée + socle RGPD (consentement, export, suppression). → [10_SECURITY.md](10_SECURITY.md).

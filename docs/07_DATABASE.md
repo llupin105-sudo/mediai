@@ -102,6 +102,16 @@ Une ligne par requête HTTP (méthode, chemin, IP, email éventuel, `request_id`
 
 ---
 
+### Tables du Cockpit (Sprint 6)
+
+Ajoutées pour transformer la Home en cockpit. Créées par `initDb()` (idempotent). Aucune donnée médicale n'y est inventée : RDV/tâches/messages sont **saisis**, le reste est **dérivé**.
+
+- **`appointments`** — module Rendez-vous. `medecin_id`, `patient_id` (NULL autorisé → `patient_label` libre), `start_at`/`end_at`, `motif`, `mode` (`cabinet`/`visite`/`teleconsultation`), `status` (`planifie`/`confirme`/`en_salle`/`termine`/`annule`/`absent`). Index `(medecin_id, start_at)`.
+- **`tasks`** — moteur de tâches. `type`, `priority`, `status`, `due_date`, `source` (`manuel`/`ia`/`systeme`), `source_ref`. **Index unique partiel** `(medecin_id, source_ref) WHERE source_ref IS NOT NULL` : anti-doublon des tâches système matérialisées depuis les signaux.
+- **`workspace_layouts`** — layouts personnalisables du cockpit. `name`, `mode`, `layout` JSONB (ordre/taille/visibilité des widgets), `is_default`. (Persistance serveur consommée au Lot 3.)
+- **`message_threads`** / **`messages`** — messagerie sécurisée (fondations). Contenu 100 % rédigé par les utilisateurs. `sender_type` (`medecin`/`patient`), horodatages de lecture séparés.
+- **`cockpit_briefings`** — cache du récit IA du cockpit (1 ligne/médecin), régénéré quand la **signature des faits du jour** (`facts_signature`) change. Non décompté du quota.
+
 ## Conventions
 
 - **Clés primaires** : `UUID` générés côté application (`crypto.randomUUID()`), jamais de séquences auto-incrémentées.

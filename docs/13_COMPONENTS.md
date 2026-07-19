@@ -26,6 +26,21 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app m
 | Fil d'activité | `.dash-activity-*`, `.activity-*` |
 | Barre d'usage / quota | `renderUsageBar` |
 
+### Cockpit (Sprint 6) ⭐ — la Home devient le cerveau de MediAI
+Remplace l'orchestration du dashboard. Barre de briefing + sélecteur de modes + grille de widgets, alimentée par `GET /api/cockpit`.
+| Composant | Classes / fonctions |
+|---|---|
+| Orchestrateur | `renderDashboard` (réorchestré), `fetchCockpit`, `cockpitState`, `cockpitRefresh` |
+| Barre de briefing IA | `renderCockpitBar`, `loadCockpitBriefing`, `#cockpitBar`, badge « ✨ IA · à vérifier » |
+| Modes & personnalisation | `renderCockpitControls`, `cockpitSetMode`, `toggleCockpitEdit`, `cockpitToggleWidget`, `cockpitMoveWidget`, `COCKPIT_MODES` (cockpit/consultation/cabinet/visite/urgences), persistance `localStorage` |
+| Grille & widgets | `renderCockpitGrid`, `COCKPIT_WIDGETS` (`agenda`, `priorites`, `taches`, `resultats`, `renouvellements`, `recommandations`, `messages`, `activite`), `ensureCockpitStyles`, `#cockpitGrid` |
+| Actions Tâches | `cockpitCompleteTask`, `cockpitAddTask`, `cockpitSyncSignals` |
+| Actions RDV | `openCockpitApptModal`, `submitCockpitAppt` |
+| Messagerie (compacte) | `cockpitOpenMessages`, `cockpitOpenThread`, `cockpitSendMessage` |
+| Activité (async, cache) | `fillCockpitActivity` (réutilise `fetchAllEvents`) |
+
+> Le drag & drop / redimensionnement / layouts serveur multiples sont prévus au **Lot 3** (backend `workspace_layouts` déjà prêt).
+
 ### Patient & dossier
 | Composant | Classes / fonctions |
 |---|---|

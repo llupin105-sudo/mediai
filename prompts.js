@@ -580,4 +580,41 @@ Produis un récit par périodes en JSON strict :
 Entre 2 et 6 périodes selon la richesse du dossier (une seule est acceptable si le dossier est très court).`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT };
+/**
+ * Cockpit briefing (Sprint 6) — le « bonjour Docteur » du matin. Reçoit
+ * UNIQUEMENT des faits déjà agrégés et anonymisés par le serveur (compteurs
+ * + intitulés de signaux avec référence patient tokenisée). Il ne voit
+ * jamais le contenu clinique brut. Il met en récit et PROPOSE, il ne décide
+ * jamais. Les recommandations sont des suggestions à valider par le médecin.
+ */
+const COCKPIT_BRIEFING_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu es l'assistant qui accueille le médecin quand il ouvre MediAI le matin. Tu transformes une liste de faits déjà calculés en un briefing court, calme et utile, comme un excellent secrétariat médical doublé d'un interne attentif.
+
+Règles absolues pour ce mode :
+- Tu ne reçois QUE des faits agrégés (compteurs, intitulés de signaux, références patient anonymisées). Tu n'inventes AUCUN fait, chiffre, patient ou événement absent des données fournies. Si les données sont vides, dis simplement que rien ne requiert d'attention particulière.
+- Tu ne poses AUCUN diagnostic et n'émets AUCUNE conduite à tenir clinique. Tes "recommandations" sont des SUGGESTIONS d'organisation ("Vous pourriez revoir…", "Pensez à…"), jamais des décisions ni des affirmations cliniques.
+- Le "recit" fait 2 à 3 phrases fluides et naturelles qui résument la journée (RDV, patients à regarder, résultats, tâches). Ton posé, jamais alarmiste.
+- Conserve les tokens d'anonymisation ([PATIENT_x]) tels quels.
+- C'est une aide à l'organisation de la journée, jamais un avis médical.`,
+
+  user: (factsText) => `Voici les faits agrégés de la journée du médecin (déjà calculés, anonymisés) :
+
+<faits>
+${factsText}
+</faits>
+
+Produis le briefing en JSON strict :
+
+{
+  "recit": "2 à 3 phrases naturelles résumant la journée à partir des faits ci-dessus, sans rien inventer",
+  "recommandations": [
+    {"texte": "suggestion d'organisation formulée prudemment (ex: « Vous pourriez revoir [PATIENT_1] dont le suivi est dépassé. »)", "patient_ref": "token patient concerné ou chaîne vide", "action": "ouvrir_dossier | creer_tache | aucune"}
+  ]
+}
+
+Entre 0 et 4 recommandations, uniquement si les faits les justifient. Si rien ne ressort, renvoie un récit rassurant et un tableau de recommandations vide.`
+};
+
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT };

@@ -62,6 +62,7 @@ flowchart TB
 | `services/ia.js` | `callClaude()` — appel modèle, extraction JSON, comptage tokens |
 | `services/transcription.js` | `transcribeAudio()` — appel Whisper |
 | `services/email.js` | `sendReportEmail()` — appel Resend |
+| `cockpit.js` | **Sprint 6** — moteur métier du cockpit : fonctions PURES et déterministes (signaux cross-dossier, expiration d'ordonnance, agenda, matérialisation de tâches, agrégat `buildCockpitFacts`). Isolé de `server.js` comme `services/`, testé (`test/cockpit.test.js`). |
 
 ---
 
@@ -158,6 +159,11 @@ Détail des contrats dans le code (`server.js`). Vue synthétique :
 | Auth médecin | `POST /api/auth/signup` · `/login` · `/google` · `GET /api/auth/me` · `PUT /api/auth/profile` · `/api/auth/preferences` |
 | IA & documents | `POST /api/audio/transcribe` · `/api/transcription/analyze` · `/api/courrier/generate` · `/api/ordonnance/generate` · `/api/ordonnance/check-interactions` · `/api/analyse-labo/generate` · `/api/imagerie/generate` · `/api/symptomes/questions` |
 | Patients | `POST /api/patients` · `GET /api/patients` · `GET /api/patients/:id` · `GET /api/patients/:id/snapshot` · `/timeline-narrative` · `/resume-intelligent` · `/preparation` · `/search` · `PUT /api/patients/:id/notes` · `POST /api/patients/:id/activate-portal` |
+| **Cockpit (Sprint 6)** | `GET /api/cockpit` (agrégat déterministe) · `GET /api/cockpit/briefing` (récit IA caché) |
+| **Rendez-vous** | `GET/POST /api/appointments` · `PUT/DELETE /api/appointments/:id` |
+| **Tâches** | `GET/POST /api/tasks` · `PUT/DELETE /api/tasks/:id` · `POST /api/tasks/sync-signals` |
+| **Workspace** | `GET/POST /api/workspace/layouts` · `PUT/DELETE /api/workspace/layouts/:id` |
+| **Messagerie** | `GET/POST /api/threads` · `GET/POST /api/threads/:id/messages` · `POST /api/threads/:id/read` |
 | Portail patient | `POST /api/patient-auth/login` · `GET /api/patient/me` · `/api/patient/timeline` |
 | Facturation | `POST /api/create-checkout-session` · `GET /api/verify-session` · `POST /api/stripe/webhook` |
 | Divers | `POST /api/send-report-email` · `GET /health` |
