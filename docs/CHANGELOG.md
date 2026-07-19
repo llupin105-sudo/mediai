@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Routage production : landing en page d'accueil — 2026-07-17
+
+Frontend (`mediai-site`). Réorganisation domain-agnostic, déployée.
+
+### Modifié
+- **`index.html` = landing** (page d'accueil officielle) ; l'app déplacée en **`app.html` servie sur `/app`** ; portail sur `/patient`. URLs propres via `vercel.json` (`cleanUrls`).
+- Boutons **Se connecter / Demander une démo** → `/app` en **liens relatifs** (indépendants du domaine).
+- Retour de paiement **Stripe** ré-acheminé vers `/app` par un script en tête de landing — **aucune modification backend**.
+- **`README.md`** d'architecture + procédure de bascule vers `mediai.fr` / `app.mediai.fr` sans changement de code.
+- Vérifié en prod : `/` → landing (200), `/app` → app (200), `/patient` → portail (200), `/app.html` → 308 vers `/app`.
+
+---
+
 ## [Non publié] — Site vitrine officiel (landing) — 2026-07-17
 
 Frontend uniquement (`mediai-site/landing.html`, nouveau fichier autonome — **n'affecte pas l'app** `index.html`).
