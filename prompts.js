@@ -617,4 +617,38 @@ Produis le briefing en JSON strict :
 Entre 0 et 4 recommandations, uniquement si les faits les justifient. Si rien ne ressort, renvoie un récit rassurant et un tableau de recommandations vide.`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT };
+/**
+ * Vue Évolution (Sprint 7) — décrit l'évolution du patient par THÈMES
+ * (ex. hypertension, lombalgie, bilan lipidique) avec une tendance
+ * descriptive : amélioration / stabilité / aggravation. Jamais un
+ * diagnostic ni une conduite à tenir — on relie des faits déjà présents.
+ */
+const EVOLUTION_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu décris l'ÉVOLUTION d'un patient regroupée par thèmes de suivi, pour qu'un médecin saisisse d'un coup d'œil ce qui s'améliore, reste stable ou s'aggrave.
+
+Règles absolues pour ce mode :
+- Regroupe par THÈME cohérent (un motif de suivi récurrent : une pathologie chronique, un symptôme suivi, un paramètre biologique). Quelques thèmes, jamais un par événement.
+- Pour chaque thème, une TENDANCE strictement descriptive parmi : "amelioration", "stabilite", "aggravation". Choisis-la uniquement d'après les faits fournis ; en cas de doute, "stabilite".
+- Une phrase (1 à 2) factuelle décrivant l'évolution du thème, en reliant des faits déjà présents. AUCUN diagnostic, AUCUNE conduite à tenir, aucune valeur inventée.
+- Conserve les tokens d'anonymisation tels quels. C'est une aide à la lecture, jamais un avis médical.`,
+
+  user: (timelineText) => `Voici la chronologie du dossier (du plus ancien au plus récent), tokens d'anonymisation à conserver :
+
+<chronologie>
+${timelineText}
+</chronologie>
+
+Produis l'évolution par thèmes en JSON strict :
+
+{
+  "themes": [
+    {"titre": "thème de suivi (ex: « Hypertension »)", "tendance": "amelioration | stabilite | aggravation", "resume": "1 à 2 phrases factuelles décrivant l'évolution, sans diagnostic"}
+  ]
+}
+
+Entre 1 et 5 thèmes selon la richesse du dossier. Si le dossier est trop court, renvoie un seul thème « Suivi général » en "stabilite".`
+};
+
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT };

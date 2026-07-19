@@ -26,7 +26,7 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT } = require('./prompts');
 const db = require('./db');
 
 // ── Moteur métier du Cockpit (Sprint 6) — fonctions pures déterministes ──
@@ -1237,6 +1237,165 @@ app.put('/api/patients/:id/notes', requireAuth, async (req, res) => {
     return res.json({ success: true, patient: updated });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur lors de la mise à jour des notes' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// DOSSIER MÉDICAL INTELLIGENT (Sprint 7)
+// ════════════════════════════════════════════════════════════════════
+const MANUAL_EVENT_TYPES = ['hospitalisation', 'urgences', 'vaccination', 'teleconsultation', 'document', 'analyse_ia'];
+const KEY_FACT_CATEGORIES = ['allergie', 'antecedent', 'maladie_chronique', 'vaccin', 'note'];
+const KEY_FACT_SEVERITY = ['important', 'attention', 'info'];
+
+// Vérifie l'appartenance du patient au médecin ; renvoie la fiche ou null (avec 404 déjà émis).
+async function loadOwnedPatient(req, res) {
+  const patient = await db.getPatientById(req.params.id);
+  if (!patient || patient.medecin_id !== req.medecin.id) {
+    res.status(404).json({ error: 'Patient introuvable' });
+    return null;
+  }
+  return patient;
+}
+
+// ── POST /api/patients/:id/events — événement saisi manuellement ──
+// Hospitalisation, urgences, vaccination, téléconsultation, document
+// (métadonnées uniquement), analyse IA. Aucune donnée inventée : tout
+// est fourni par le médecin.
+app.post('/api/patients/:id/events', requireAuth, async (req, res) => {
+  const { type, title, date, note, data } = req.body;
+  if (!MANUAL_EVENT_TYPES.includes(type)) {
+    return res.status(400).json({ error: `Type d'événement non supporté. Options : ${MANUAL_EVENT_TYPES.join(', ')}` });
+  }
+  if (!title || !title.trim()) return res.status(400).json({ error: 'Titre requis' });
+  try {
+    const patient = await loadOwnedPatient(req, res);
+    if (!patient) return;
+    const eventDate = date && !isNaN(new Date(date).getTime()) ? new Date(date).toISOString() : null;
+    const id = crypto.randomUUID();
+    const evt = await db.createMedicalEvent({
+      id, patientId: patient.id, medecinId: req.medecin.id,
+      type, title: title.trim(),
+      data: { ...(data && typeof data === 'object' ? data : {}), note: (note || '').trim() },
+      eventDate,
+    });
+    return res.json({ success: true, id, event: evt });
+  } catch (err) {
+    console.error('[ERROR create-event]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de l'ajout de l'événement" });
+  }
+});
+
+// ── « À retenir » — faits clés structurés ────────────────────────
+app.get('/api/patients/:id/key-facts', requireAuth, async (req, res) => {
+  try {
+    const patient = await loadOwnedPatient(req, res);
+    if (!patient) return;
+    const items = await db.listKeyFacts(patient.id);
+    return res.json({ items });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la récupération des faits clés' });
+  }
+});
+
+app.post('/api/patients/:id/key-facts', requireAuth, async (req, res) => {
+  const { category, label, detail, severity, position } = req.body;
+  if (!label || !label.trim()) return res.status(400).json({ error: 'Libellé requis' });
+  try {
+    const patient = await loadOwnedPatient(req, res);
+    if (!patient) return;
+    const fact = await db.createKeyFact({
+      id: crypto.randomUUID(),
+      patientId: patient.id,
+      category: KEY_FACT_CATEGORIES.includes(category) ? category : 'note',
+      label: label.trim(),
+      detail: (detail || '').trim(),
+      severity: KEY_FACT_SEVERITY.includes(severity) ? severity : 'info',
+      position: Number.isInteger(position) ? position : 0,
+    });
+    return res.json({ success: true, fact });
+  } catch (err) {
+    console.error('[ERROR key-fact create]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de l'ajout du fait clé" });
+  }
+});
+
+app.put('/api/patients/:id/key-facts/:factId', requireAuth, async (req, res) => {
+  try {
+    const patient = await loadOwnedPatient(req, res);
+    if (!patient) return;
+    const fact = await db.getKeyFactById(req.params.factId);
+    if (!fact || fact.patient_id !== patient.id) return res.status(404).json({ error: 'Fait clé introuvable' });
+    const { category, label, detail, severity, position } = req.body;
+    const fields = {};
+    if (category !== undefined && KEY_FACT_CATEGORIES.includes(category)) fields.category = category;
+    if (label !== undefined) fields.label = label;
+    if (detail !== undefined) fields.detail = detail;
+    if (severity !== undefined && KEY_FACT_SEVERITY.includes(severity)) fields.severity = severity;
+    if (position !== undefined) fields.position = position;
+    const updated = await db.updateKeyFact(req.params.factId, fields);
+    return res.json({ success: true, fact: updated });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la mise à jour du fait clé' });
+  }
+});
+
+app.delete('/api/patients/:id/key-facts/:factId', requireAuth, async (req, res) => {
+  try {
+    const patient = await loadOwnedPatient(req, res);
+    if (!patient) return;
+    const fact = await db.getKeyFactById(req.params.factId);
+    if (!fact || fact.patient_id !== patient.id) return res.status(404).json({ error: 'Fait clé introuvable' });
+    await db.deleteKeyFact(req.params.factId);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la suppression du fait clé' });
+  }
+});
+
+// ── GET /api/patients/:id/evolution — tendances descriptives (IA) ──
+// Anonymisée, non-décisionnelle, cachée (régénérée au changement
+// d'événements). Non décomptée du quota. ?refresh=1 force.
+app.get('/api/patients/:id/evolution', aiLimiter, requireAuth, async (req, res) => {
+  try {
+    const patient = await loadOwnedPatient(req, res);
+    if (!patient) return;
+    const events = await db.listEventsByPatient(patient.id);
+    if (events.length < 2) return res.json({ success: true, themes: [], empty: true });
+
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const cached = await db.getPatientEvolution(patient.id);
+    if (!forceRefresh && cached && cached.source_events_count === events.length) {
+      return res.json({ success: true, themes: (cached.data && cached.data.themes) || [], cached: true });
+    }
+
+    const lines = events.slice().reverse().map((e) => {
+      const date = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (e.type === 'consultation') return `${date} — Consultation : ${e.data.resume_1_ligne || e.title}`;
+      if (e.type === 'ordonnance') {
+        const meds = (e.data.prescriptions || []).map((p) => p.medicament).filter(Boolean).join(', ');
+        return `${date} — Ordonnance : ${meds || e.title}`;
+      }
+      return `${date} — ${e.type} : ${e.title}`;
+    });
+    let timelineText = lines.join('\n');
+    if (patient.prenom) timelineText = timelineText.split(patient.prenom).join('[PATIENT_PRENOM]');
+    if (patient.nom) timelineText = timelineText.split(patient.nom).join('[PATIENT_NOM]');
+
+    const { json, tokensUsed } = await callClaude({
+      system: EVOLUTION_PROMPT.system,
+      user: EVOLUTION_PROMPT.user(timelineText),
+      maxTokens: 1000,
+    });
+    let str = JSON.stringify(json);
+    if (patient.prenom) str = str.split('[PATIENT_PRENOM]').join(patient.prenom);
+    if (patient.nom) str = str.split('[PATIENT_NOM]').join(patient.nom);
+    const data = JSON.parse(str);
+
+    await db.savePatientEvolution({ patientId: patient.id, data, sourceEventsCount: events.length, tokensUsed });
+    return res.json({ success: true, themes: data.themes || [], cached: false });
+  } catch (err) {
+    console.error('[ERROR evolution]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de la génération de l'évolution" });
   }
 });
 

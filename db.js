@@ -262,6 +262,36 @@ async function initDb() {
     );
   `);
 
+  // ── « À retenir » — faits clés structurés du patient (Sprint 7) ──
+  // Allergies, antécédents, maladies chroniques, notes… saisis/édités par
+  // le médecin (l'IA peut proposer, il valide). Donnée structurée et fiable,
+  // par opposition au texte libre des notes.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS patient_key_facts (
+      id UUID PRIMARY KEY,
+      patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      category TEXT NOT NULL DEFAULT 'note',
+      label TEXT NOT NULL,
+      detail TEXT DEFAULT '',
+      severity TEXT NOT NULL DEFAULT 'info',
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_key_facts_patient ON patient_key_facts(patient_id, category);`);
+
+  // ── Vue Évolution (Sprint 7) — cache du récit descriptif de tendances ──
+  // Une ligne par patient, régénérée quand le nombre d'événements change.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS patient_evolution (
+      patient_id UUID PRIMARY KEY REFERENCES patients(id) ON DELETE CASCADE,
+      data JSONB NOT NULL,
+      source_events_count INTEGER NOT NULL DEFAULT 0,
+      tokens_used INTEGER,
+      generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   console.log('DEBUG - Base de données : tables vérifiées/créées avec succès');
 }
 
@@ -423,11 +453,13 @@ async function getPatientByLoginEmail(email) {
 
 // ── Événements médicaux (consultations, ordonnances, courriers...) ─
 
-async function createMedicalEvent({ id, patientId, medecinId, type, title, data, tokensUsed }) {
+async function createMedicalEvent({ id, patientId, medecinId, type, title, data, tokensUsed, eventDate }) {
+  // eventDate optionnel : un événement saisi manuellement (hospitalisation,
+  // vaccin…) peut être daté dans le passé. Absent → now() (défaut).
   const result = await pool.query(
-    `INSERT INTO medical_events (id, patient_id, medecin_id, type, title, data, tokens_used)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [id, patientId, medecinId, type, title, JSON.stringify(data), tokensUsed || null]
+    `INSERT INTO medical_events (id, patient_id, medecin_id, type, title, event_date, data, tokens_used)
+     VALUES ($1, $2, $3, $4, $5, COALESCE($6::timestamptz, now()), $7, $8) RETURNING *`,
+    [id, patientId, medecinId, type, title, eventDate || null, JSON.stringify(data), tokensUsed || null]
   );
   return result.rows[0];
 }
@@ -739,6 +771,69 @@ async function saveCockpitBriefing({ medecinId, data, factsSignature, tokensUsed
   return result.rows[0];
 }
 
+// ── « À retenir » — faits clés (Sprint 7) ─────────────────────────
+
+async function listKeyFacts(patientId) {
+  const result = await pool.query(
+    `SELECT * FROM patient_key_facts WHERE patient_id = $1 ORDER BY category, position, created_at`,
+    [patientId]
+  );
+  return result.rows;
+}
+
+async function createKeyFact({ id, patientId, category, label, detail, severity, position }) {
+  const result = await pool.query(
+    `INSERT INTO patient_key_facts (id, patient_id, category, label, detail, severity, position)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    [id, patientId, category || 'note', label, detail || '', severity || 'info', position || 0]
+  );
+  return result.rows[0];
+}
+
+async function getKeyFactById(id) {
+  const result = await pool.query(`SELECT * FROM patient_key_facts WHERE id = $1`, [id]);
+  return result.rows[0] || null;
+}
+
+async function updateKeyFact(id, fields) {
+  const allowed = ['category', 'label', 'detail', 'severity', 'position'];
+  const sets = [], params = [];
+  for (const key of allowed) {
+    if (fields[key] !== undefined) { params.push(fields[key]); sets.push(`${key} = $${params.length}`); }
+  }
+  if (!sets.length) return getKeyFactById(id);
+  params.push(id);
+  const result = await pool.query(
+    `UPDATE patient_key_facts SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+    params
+  );
+  return result.rows[0] || null;
+}
+
+async function deleteKeyFact(id) {
+  await pool.query(`DELETE FROM patient_key_facts WHERE id = $1`, [id]);
+}
+
+// ── Vue Évolution — cache (Sprint 7) ──────────────────────────────
+
+async function getPatientEvolution(patientId) {
+  const result = await pool.query(`SELECT * FROM patient_evolution WHERE patient_id = $1`, [patientId]);
+  return result.rows[0] || null;
+}
+
+async function savePatientEvolution({ patientId, data, sourceEventsCount, tokensUsed }) {
+  const result = await pool.query(
+    `INSERT INTO patient_evolution (patient_id, data, source_events_count, tokens_used, generated_at)
+     VALUES ($1,$2,$3,$4, now())
+     ON CONFLICT (patient_id) DO UPDATE
+       SET data = EXCLUDED.data, source_events_count = EXCLUDED.source_events_count,
+           tokens_used = EXCLUDED.tokens_used, generated_at = now()
+     RETURNING *`,
+    [patientId, JSON.stringify(data), sourceEventsCount, tokensUsed || null]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   pool,
   initDb,
@@ -790,4 +885,12 @@ module.exports = {
   markThreadReadByMedecin,
   getCockpitBriefing,
   saveCockpitBriefing,
+  // Sprint 7 — dossier médical intelligent
+  listKeyFacts,
+  createKeyFact,
+  getKeyFactById,
+  updateKeyFact,
+  deleteKeyFact,
+  getPatientEvolution,
+  savePatientEvolution,
 };
