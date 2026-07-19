@@ -4,6 +4,20 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Site vitrine officiel (landing) — 2026-07-17
+
+Frontend uniquement (`mediai-site/landing.html`, nouveau fichier autonome — **n'affecte pas l'app** `index.html`).
+
+### Ajouté
+- **Landing page premium** (13 sections) : navigation fixe (blur au scroll), hero (titre + double CTA + mockups MacBook/iPhone avec l'**interface fidèle** du produit), trusted-by + badges de conformité honnêtes (« HDS — en cours »), statistiques à compteurs animés, bloc vidéo, **démo interactive** à onglets (Home / Snapshot / Cockpit), grille de fonctionnalités, comparaison « logiciels classiques vs MediAI » (sans citer de concurrent), 4 écosystèmes, slider d'avis, FAQ animée, CTA final dégradé, footer complet.
+- **Vrai logo MediAI** (base64 extrait du produit) inline ; palette + typographie (Inter) officielles ; reveal au scroll (IntersectionObserver), micro-interactions, responsive desktop/tablette/mobile.
+
+### ⚠️ À compléter avant publication publique (placeholders assumés)
+- MediAI étant **pré-lancement**, les **logos partenaires**, **statistiques** et **témoignages** sont des **placeholders illustratifs** — à remplacer par des données réelles avant toute mise en ligne publique (ne pas publier de preuve sociale fabriquée).
+- Non déployé : décision de publication laissée à l'utilisateur.
+
+---
+
 ## [Non publié] — Patient Intelligence Workspace (4) : Smart Timeline narrative — 2026-07-17
 
 Backend + frontend. La chronologie du dossier devient un **récit par périodes**.
