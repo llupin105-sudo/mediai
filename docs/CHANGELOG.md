@@ -12,9 +12,10 @@ Frontend uniquement (`mediai-site/landing.html`, nouveau fichier autonome — **
 - **Landing page premium** (13 sections) : navigation fixe (blur au scroll), hero (titre + double CTA + mockups MacBook/iPhone avec l'**interface fidèle** du produit), trusted-by + badges de conformité honnêtes (« HDS — en cours »), statistiques à compteurs animés, bloc vidéo, **démo interactive** à onglets (Home / Snapshot / Cockpit), grille de fonctionnalités, comparaison « logiciels classiques vs MediAI » (sans citer de concurrent), 4 écosystèmes, slider d'avis, FAQ animée, CTA final dégradé, footer complet.
 - **Vrai logo MediAI** (base64 extrait du produit) inline ; palette + typographie (Inter) officielles ; reveal au scroll (IntersectionObserver), micro-interactions, responsive desktop/tablette/mobile.
 
-### ⚠️ À compléter avant publication publique (placeholders assumés)
-- MediAI étant **pré-lancement**, les **logos partenaires**, **statistiques** et **témoignages** sont des **placeholders illustratifs** — à remplacer par des données réelles avant toute mise en ligne publique (ne pas publier de preuve sociale fabriquée).
-- Non déployé : décision de publication laissée à l'utilisateur.
+### v2 — design officiel + vrais assets, DÉPLOYÉE
+- Refonte alignée sur le **design officiel** fourni (`visuel du site`) : **hero sombre premium**, 13 sections. **Vrai logo officiel** + **vrais visuels produit** (espaces patient / pharmacie / hôpital, écosystème) intégrés (dans `mediai-site/assets/`) dans la démo à onglets et les écosystèmes (lightbox). Déployée sur Vercel (`mediai-site` main).
+- **Intégrité maintenue (pré-lancement)** : « HDS — en cours » (jamais présenté comme acquis) ; pas de logos de vrais établissements comme clients ; statistiques = faits produit vérifiables ; **témoignages illustratifs à remplacer** par de vrais avis avant toute campagne publique.
+- Reste à l'utilisateur : décider du routage (landing = page d'accueil vs `/landing.html`, l'app restant sur `index.html`) ; fournir vrais logos partenaires / avis / captures HD s'il veut substituer les rendus.
 
 ---
 
