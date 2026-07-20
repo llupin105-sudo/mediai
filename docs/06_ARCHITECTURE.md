@@ -9,8 +9,9 @@ Documentation technique de MediAI : architecture globale, flux de données, auth
 ```mermaid
 flowchart TB
     subgraph FE["Frontend — repo mediai-site · Vercel"]
-        MED["index.html · App médecin<br/>(monofichier, ~4000 lignes)"]
-        PAT["patient.html · Portail patient<br/>(monofichier, mobile-first)"]
+        LAND["index.html · Landing premium<br/>(page d'accueil / )"]
+        MED["app.html · App médecin<br/>(monofichier, ~5700 lignes, /app)"]
+        PAT["patient.html · Portail patient<br/>(monofichier, mobile-first, /patient)"]
     end
 
     subgraph BE["Backend — repo mediai · Render"]
@@ -164,6 +165,8 @@ Détail des contrats dans le code (`server.js`). Vue synthétique :
 | **Tâches** | `GET/POST /api/tasks` · `PUT/DELETE /api/tasks/:id` · `POST /api/tasks/sync-signals` |
 | **Workspace** | `GET/POST /api/workspace/layouts` · `PUT/DELETE /api/workspace/layouts/:id` |
 | **Messagerie** | `GET/POST /api/threads` · `GET/POST /api/threads/:id/messages` · `POST /api/threads/:id/read` |
+| **Dossier intelligent (Sprint 7)** | `POST /api/patients/:id/events` (événement manuel) · CRUD `/api/patients/:id/key-facts` · `GET /api/patients/:id/evolution` |
+| **Module Ordonnance (Sprint 8)** | `POST /api/patients/:id/ordonnances` · `PUT /api/ordonnances/:id` · `/sign` · `/renew` · `/stop` · `/duplicate` · `DELETE /api/ordonnances/:id` |
 | Portail patient | `POST /api/patient-auth/login` · `GET /api/patient/me` · `/api/patient/timeline` |
 | Facturation | `POST /api/create-checkout-session` · `GET /api/verify-session` · `POST /api/stripe/webhook` |
 | Divers | `POST /api/send-report-email` · `GET /health` |

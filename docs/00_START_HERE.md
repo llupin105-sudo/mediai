@@ -19,8 +19,9 @@ Ambition : devenir *le logiciel médical le plus agréable à utiliser en France
 ```mermaid
 flowchart LR
     subgraph Client["Frontend — repo mediai-site (Vercel)"]
-        M["index.html<br/>App médecin"]
-        P["patient.html<br/>Portail patient"]
+        L["index.html<br/>Landing (/)"]
+        M["app.html<br/>App médecin (/app)"]
+        P["patient.html<br/>Portail patient (/patient)"]
     end
     subgraph Server["Backend — repo mediai (Render)"]
         API["server.js<br/>API REST Express"]
@@ -53,7 +54,7 @@ Deux dépôts Git distincts :
 | Dépôt | Contenu | Déploiement |
 |---|---|---|
 | `mediai` (celui-ci) | Backend (`server.js`, `db.js`, `anonymizer.js`, `prompts.js`, `services/`), documentation (`docs/`) | Render |
-| `mediai-site` | `index.html` (médecin), `patient.html` (patient) | Vercel |
+| `mediai-site` | `index.html` (landing `/`), `app.html` (app médecin `/app`), `patient.html` (portail `/patient`) | Vercel |
 
 ```
 mediai/
@@ -82,7 +83,7 @@ npm start                 # démarre server.js sur le PORT (défaut 3001)
 npm test                  # lance la base de tests (node:test)
 ```
 
-Le frontend n'a pas de build : ouvrir `mediai-site/index.html` directement, ou le servir statiquement. Il pointe vers le backend de production via la constante `API_BASE`.
+Le frontend n'a pas de build : `index.html` (landing `/`), `app.html` (app médecin `/app` — écran de connexion direct puis dashboard « Aurora »), `patient.html` (portail `/patient`). Routage propre via `vercel.json` (`cleanUrls`). L'app pointe vers le backend de production via la constante `API_BASE` (dans `app.html`).
 
 ---
 

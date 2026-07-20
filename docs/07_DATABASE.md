@@ -112,6 +112,17 @@ Ajoutées pour transformer la Home en cockpit. Créées par `initDb()` (idempote
 - **`message_threads`** / **`messages`** — messagerie sécurisée (fondations). Contenu 100 % rédigé par les utilisateurs. `sender_type` (`medecin`/`patient`), horodatages de lecture séparés.
 - **`cockpit_briefings`** — cache du récit IA du cockpit (1 ligne/médecin), régénéré quand la **signature des faits du jour** (`facts_signature`) change. Non décompté du quota.
 
+### Tables du Dossier intelligent (Sprint 7)
+
+- **`patient_key_facts`** — « À retenir » structuré et éditable : `category` (`allergie`/`antecedent`/`maladie_chronique`/`vaccin`/`note`), `label`, `detail`, `severity`, `position`. Complété côté app par du dérivé (traitements actifs = dernière ordonnance, dernière hospitalisation = dernier événement `hospitalisation`).
+- **`patient_evolution`** — cache du récit de tendances (IA descriptive), régénéré au changement d'événements (`source_events_count`).
+
+### Ordonnance — module (Sprint 8, sans nouvelle table)
+
+L'ordonnance reste un `medical_event` type `ordonnance` dont le `data` JSONB est **enrichi** : `status` (`brouillon`/`active`/`archivee`/`arretee`), `prescriptions[]` (medicament, posologie, durée, `duree_jours`, `renouvellements`, voie), `date_debut`/`date_fin`, `signed_at`/`signed_by`, `renewed_from`/`renewed_at`, `version`, `history[]` (append-only). Le **renouvellement** crée un nouvel événement lié (`renewed_from`) et archive l'ancien. Rétrocompatible : une ordonnance sans `status` est traitée comme `active`.
+
+**Types d'événements** (`medical_events.type`) élargis au Sprint 7 : + `hospitalisation`, `urgences`, `vaccination`, `teleconsultation`, `document`, `analyse_ia`.
+
 ## Conventions
 
 - **Clés primaires** : `UUID` générés côté application (`crypto.randomUUID()`), jamais de séquences auto-incrémentées.

@@ -69,6 +69,7 @@ Chaque prompt hérite de `BASE_SYSTEM` (sauf vigilance médicamenteuse) qui pose
 | `PATIENT_SNAPSHOT_PROMPT` | `/api/patients/:id/snapshot` | Couche IA du Patient Snapshot (Phase 5) — voir ci-dessous |
 | `TIMELINE_NARRATIVE_PROMPT` | `/api/patients/:id/timeline-narrative` | Récit du dossier par périodes (descriptif/temporel) — cache `timeline_narratives`, régénéré au changement d'événements |
 | `COCKPIT_BRIEFING_PROMPT` | `/api/cockpit/briefing` | **Sprint 6** — récit du matin + suggestions d'organisation. Ne reçoit QUE des **faits agrégés anonymisés** (compteurs + tokens `[PATIENT_n]`, jamais le contenu clinique brut). Non-décisionnel : « suggestions » (« vous pourriez… »), jamais un diagnostic. Cache `cockpit_briefings` (clé = signature des faits du jour), non décompté du quota. |
+| `EVOLUTION_PROMPT` | `/api/patients/:id/evolution` | **Sprint 7** — évolution par thèmes de suivi avec une tendance **descriptive** (`amelioration`/`stabilite`/`aggravation`). Anonymisé, jamais un diagnostic ni une conduite à tenir. Cache `patient_evolution`, régénéré au changement d'événements, « à vérifier ». |
 
 ### Garde-fous notables
 - **Interactions médicamenteuses** : ne signale que des interactions **largement documentées**, toujours formulées comme « à vérifier via source officielle » (jamais « contre-indiqué »), et rappelle systématiquement que ce n'est pas un avis pharmaceutique. En cas de doute → ne rien signaler plutôt qu'une fausse alerte.

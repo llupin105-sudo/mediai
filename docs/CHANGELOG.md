@@ -4,6 +4,39 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 8 · Clinical Workspace — Lot 1 : module Ordonnance — 2026-07-20
+
+L'ordonnance cesse d'être un document généré : c'est un **vrai module**, déployé (Render + Vercel).
+
+### Ajouté
+- **Backend** : l'ordonnance reste un `medical_event` type `ordonnance` **enrichi** (`status` brouillon/active/archivee/arretee, `prescriptions[]`, `date_debut`/`date_fin`, `signed_at`/`signed_by`, `renewed_from`, `version`, `history[]`). Endpoints `POST /api/patients/:id/ordonnances`, `PUT /api/ordonnances/:id`, `/sign`, `/renew`, `/stop`, `/duplicate`, `DELETE`. Helpers db `updateMedicalEventData` / `deleteMedicalEvent`. `createMedicalEvent` accepte une date d'événement.
+- **Frontend** : éditeur d'ordonnance en modale floutée (`openOrdonnanceEditor`) — lignes éditables, brouillon → **Signer** (validation + verrouillage + horodatage + RPPS, **jamais** une signature électronique légale), **Renouveler en 1 clic** (ancienne archivée, historique conservé), Dupliquer, Arrêter, Exporter PDF, panneau Historique. Ouverture depuis la fiche et la timeline.
+- **Transparence** : « Signer » n'est pas présenté comme une signature électronique qualifiée (eIDAS/CPS = chantier conformité séparé).
+
+### Reste (Sprint 8) : Lot 2 (Action Bar + Quick Create + raccourcis), Lot 3 (Centre documentaire + Favoris), Lot 4 (micro-interactions & perf).
+
+---
+
+## [Non publié] — Sprint 7 · Dossier médical intelligent — 2026-07-19
+
+Le dossier patient devient un dossier médical intelligent (déployé).
+
+### Ajouté
+- **Backend** : table `patient_key_facts` (« À retenir » structuré) + `patient_evolution` (cache). Endpoints `POST /api/patients/:id/events` (événement manuel daté), CRUD `/key-facts`, `GET /evolution` (IA descriptive anonymisée, cachée, « à vérifier »). Prompt `EVOLUTION_PROMPT`.
+- **Frontend** : 6 nouveaux types d'événements (hospitalisation 🏥, urgences 🚑, vaccination 💉, téléconsultation 📞, document 📄, analyse IA 🧬) ; rail **« À retenir »** éditable (allergies, maladies chroniques, antécédents, vaccins) + dérivé (traitements actifs, dernière hospitalisation) ; toggle **Chronologie / Évolution** ; **＋ Événement**. Filtres et recherche instantanés + récit IA par période conservés.
+
+---
+
+## [Non publié] — Sprint 6bis · Dashboard « Aurora » (refonte de la Home) — 2026-07-19
+
+Refonte complète du dashboard, **supersède** le cockpit à widgets du Sprint 6 (déployé).
+
+### Modifié
+- La Home devient un **bandeau navy** (salutation, date, **une** priorité, phrase IA « à vérifier », 2 actions) + **4 cartes** (Agenda · Patients à regarder · Alertes · Recommandation IA). Namespace `.aur-*`, alimenté par `/api/cockpit`. Deux couleurs (navy/blanc), bleu en accent, sidebar polie. Bouton « Continuer avec Google » fiabilisé (retry GSI) et rendu proéminent. Résolution d'une collision de classes `.ckpt-*`.
+- Les widgets Sprint 6 (modes, tâches, messages…) restent en code mais quittent la Home.
+
+---
+
 ## [Non publié] — Nouvelle porte d'entrée : la landing premium devient l'accueil officiel — 2026-07-19
 
 Frontend (`mediai-site`). Restructuration de l'entrée du produit, **sans perte de fonctionnalité** (l'application médecin est strictement inchangée). Vérifié en local (serveur statique + navigateur).

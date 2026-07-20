@@ -56,6 +56,13 @@
 - 🔄 **Sprint 4 — Signaux & alertes proactifs** (pilier « détecter ») : **4.1 livré** — moteur de détection déterministe (`computePatientSignals`), carte « Signaux détectés » en tête du Cockpit + panneau « Signaux cliniques » transversal sur le dashboard. 100 % déterministe (aucune IA, observations factuelles « à vérifier »). Restant : interactions sur tout le dossier, tendances de constantes, seuils réglables.
 - ⏭️ Différenciation patient · signaux avancés. → [11_ROADMAP.md](11_ROADMAP.md).
 
+**⭐ En production (2026-07-20)** — la série de sprints suivante est **déployée** (Render + Vercel) :
+- **Porte d'entrée** : `index.html` = landing officielle (`/`) ; `app.html` = app médecin (`/app`, connexion directe, Google fiabilisé) ; `patient.html` (`/patient`). L'ancien marketing intégré à l'app est retiré ; déconnexion → `/`.
+- **Dashboard « Aurora »** : Home refondue (bandeau navy + 4 cartes), **supersède** le cockpit à widgets du Sprint 6.
+- **Sprint 7 — Dossier intelligent** : rail « À retenir » éditable, Chronologie/Évolution, 6 nouveaux types d'événements, ＋ Événement.
+- **Sprint 8 Lot 1 — Module Ordonnance** : éditeur complet (brouillon/signature/renouvellement/duplication/arrêt/PDF/historique). Restant : Lots 2 (Action Bar + Quick Create + raccourcis), 3 (Documents + Favoris), 4 (polish/perf).
+- Note dette : ⚠️ le frontend `app.html` dépasse ~5700 lignes (monofichier) — extraction à envisager. La collision `.ckpt-*` a été résolue via namespaces (`.aur-*`, `.ord-*`).
+
 **Sprint 6 — MediAI Cockpit (la Home devient le cerveau) — Lots 1 & 2 livrés (2026-07-19)**
 - ✅ **Lot 1 (backend)** : module métier `cockpit.js` (déterministe, testé — 29 tests au total), nouvelles tables (`appointments`, `tasks`, `workspace_layouts`, `message_threads`/`messages`, `cockpit_briefings`), API `GET /api/cockpit` + `/briefing` + CRUD RDV/Tâches/Workspace/Messagerie, prompt `COCKPIT_BRIEFING_PROMPT` (faits agrégés anonymisés, non-décisionnel).
 - ✅ **Lot 2 (frontend `app.html`)** : la Home devient un **cockpit** — barre de briefing IA (« à vérifier »), modes (Cockpit/Consultation/Cabinet/Visite/Urgences), widgets actionnables (agenda + création RDV, patients à regarder, tâches, résultats, renouvellements, recommandations IA, messages, activité), personnalisation `localStorage`.

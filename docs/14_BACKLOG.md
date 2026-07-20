@@ -29,6 +29,10 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 | 17 | 🟠 | Durées d'ordonnance structurées | Capturer `duree_jours`/`renouvellements`/`date_debut` à la création d'ordonnance pour fiabiliser `computePrescriptionStatus` (aujourd'hui : repli sur le texte libre via `parseDelayToDays`). |
 | 18 | 🟢 | Coût du briefing cockpit | `GET /api/cockpit/briefing` appelle Claude (caché par signature des faits). Surveiller la consommation ; option debounce/à la demande pour le tier gratuit. |
 | 19 | 🟢 | Cockpit desktop-first | La grille de widgets passe à 1 colonne < 900px mais reste pensée desktop. Confort tablette à affiner. |
+| 20 | 🟠 | Sprint 8 — lots restants | Lot 2 (Action Bar + Quick Create + raccourcis N/C/O/A/D/⌘K/Esc), Lot 3 (Centre documentaire + Favoris → table `favorites`), Lot 4 (micro-interactions & perf : pagination, cache, lazy). |
+| 21 | 🟠 | `app.html` ~5700 lignes | Monofichier devenu très gros (cockpit, dossier, ordonnance…). Extraction en modules ES (sans build) à planifier. |
+| 22 | 🟢 | Signature d'ordonnance | Aujourd'hui = validation + verrouillage + horodatage (honnête). Signature électronique qualifiée (eIDAS/CPS) = chantier conformité, à cadrer avec HDS. |
+| 23 | 🟢 | Durées d'ordonnance à la saisie | L'éditeur capture `duree` (texte) ; capturer aussi `duree_jours`/`renouvellements` structurés fiabiliserait `computePrescriptionStatus`. |
 
 ---
 

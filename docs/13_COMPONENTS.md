@@ -1,12 +1,23 @@
 # 13 — COMPONENTS
 
-Inventaire des composants UI de MediAI. Source : `mediai-site/index.html` (app médecin) et `patient.html` (portail). Avant de créer un composant, chercher ici s'il existe déjà. Tous doivent respecter le [04_DESIGN_SYSTEM.md](04_DESIGN_SYSTEM.md).
+Inventaire des composants UI de MediAI. Source : `mediai-site/app.html` (app médecin) et `patient.html` (portail). Avant de créer un composant, chercher ici s'il existe déjà. Tous doivent respecter le [04_DESIGN_SYSTEM.md](04_DESIGN_SYSTEM.md).
 
 > Note d'architecture front : le frontend est un **monofichier** par univers (pas de composants « fichiers » réutilisables). Les « composants » sont des blocs CSS + fonctions `render*()` JS. Cet inventaire sert de carte pour les retrouver et les réutiliser.
 
 ---
 
-## App médecin (`index.html`)
+> ⚠️ **Fichier** : l'app médecin est `mediai-site/app.html` (servie sur `/app`). `index.html` est la **landing** premium (`/`). Les mentions historiques de `index.html` comme app médecin sont obsolètes.
+
+### Nouveautés Sprints 6bis → 8 (en production)
+| Surface | Fonctions / classes |
+|---|---|
+| **Dashboard « Aurora »** (refonte Home) | `renderAuroraBand`, `renderAuroraCards`, `ensureAuroraStyles`, `.aur-*` — bandeau navy + 4 cartes. Supersède le cockpit à widgets Sprint 6. |
+| **Rail « À retenir »** (Sprint 7) | `renderKeyFacts`, `buildDerivedFacts`, `keyFactModal`, `#keyFactsRail`, `.kf-*` — allergies/antécédents/maladies chroniques éditables + dérivé. |
+| **Vue Évolution** (Sprint 7) | `renderEvolution`, `fetchEvolution`, `setRecordView`, `#evolutionView`, `.evo-*` — tendances descriptives. |
+| **Événement manuel** (Sprint 7) | `openEventModal`, `submitEvent` ; `TL_TYPES` élargi (🏥🚑💉📞📄🧬). |
+| **Module Ordonnance** (Sprint 8) | `openOrdonnanceEditor`, `renderOrdEditor`, `ordSaveDraft`/`ordSign`/`ordRenew`/`ordStop`/`ordDuplicate`/`ordDelete`/`ordExportPdf`, `.ord-*` — éditeur en modale floutée + historique. |
+
+## App médecin (`app.html`)
 
 ### Navigation & shell
 | Composant | Classes / fonctions | Rôle |

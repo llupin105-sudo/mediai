@@ -134,7 +134,7 @@ Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Line
 
 ## 9. Responsive
 
-- **App médecin** (`index.html`) : pensée desktop en priorité (usage station de travail). Sidebar réductible (250 px → 64 px avec tooltips). Le confort tablette/mobile est une amélioration ouverte ([14_BACKLOG.md](14_BACKLOG.md)).
+- **App médecin** (`app.html`, `/app`) : pensée desktop en priorité (usage station de travail). Sidebar réductible (250 px → 64 px avec tooltips). Le confort tablette/mobile est une amélioration ouverte ([14_BACKLOG.md](14_BACKLOG.md)).
 - **Portail patient** (`patient.html`) : pensé **mobile-first** (tabbar bas d'écran, `padding-bottom` réservé). C'est le bon modèle pour un usage patient ponctuel.
 
 ---
