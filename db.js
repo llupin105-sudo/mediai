@@ -477,6 +477,19 @@ async function getMedicalEventById(id) {
   return result.rows[0] || null;
 }
 
+// Remplace le contenu (data JSONB) et éventuellement le titre d'un événement.
+// Utilisé par le module Ordonnance (Sprint 8) : édition, statut, historique.
+async function updateMedicalEventData(id, data, title) {
+  const result = title !== undefined
+    ? await pool.query(`UPDATE medical_events SET data = $1, title = $2 WHERE id = $3 RETURNING *`, [JSON.stringify(data), title, id])
+    : await pool.query(`UPDATE medical_events SET data = $1 WHERE id = $2 RETURNING *`, [JSON.stringify(data), id]);
+  return result.rows[0] || null;
+}
+
+async function deleteMedicalEvent(id) {
+  await pool.query(`DELETE FROM medical_events WHERE id = $1`, [id]);
+}
+
 // ── Synthèse patient (Phase 5) ────────────────────────────────────
 
 async function getPatientSynthesis(patientId) {
@@ -854,6 +867,8 @@ module.exports = {
   createMedicalEvent,
   listEventsByPatient,
   getMedicalEventById,
+  updateMedicalEventData,
+  deleteMedicalEvent,
   getPatientSynthesis,
   savePatientSynthesis,
   getTimelineNarrative,

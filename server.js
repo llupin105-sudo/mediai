@@ -1399,6 +1399,183 @@ app.get('/api/patients/:id/evolution', aiLimiter, requireAuth, async (req, res) 
   }
 });
 
+// ════════════════════════════════════════════════════════════════════
+// MODULE ORDONNANCE (Sprint 8) — CRUD complet, renouvellement, historique.
+// L'ordonnance reste un medical_event (type 'ordonnance') enrichi : statut,
+// versions, historique, dates. « Signer » = valider + verrouiller + horodater
+// (jamais une signature électronique légale). Aucun médicament inventé.
+// ════════════════════════════════════════════════════════════════════
+const ORD_STATUS = ['brouillon', 'active', 'archivee', 'arretee'];
+
+function sanitizeLine(p) {
+  const toInt = (v) => (Number.isInteger(v) ? v : (v ? parseInt(v, 10) || null : null));
+  return {
+    medicament: String(p.medicament || '').trim(),
+    posologie: String(p.posologie || '').trim(),
+    duree: String(p.duree || '').trim(),
+    duree_jours: toInt(p.duree_jours),
+    renouvellements: toInt(p.renouvellements) || 0,
+    voie: String(p.voie || '').trim(),
+  };
+}
+function ordDateFin(lines, dateDebut) {
+  const t0 = new Date(dateDebut).getTime();
+  return cockpit.computePrescriptionStatus({ event_date: dateDebut, data: { prescriptions: lines } }, t0).expire_le;
+}
+function histEntry(action, medecin, note) {
+  return { action, at: new Date().toISOString(), by: medecin.profile?.nom || medecin.email, note: note || '' };
+}
+function ordTitle(lines) { return `Ordonnance — ${lines.length} médicament(s)`; }
+function medecinBlock(user) {
+  return { nom: user.profile?.nom || user.email, rpps: user.profile?.rpps || '', cabinet: user.profile?.cabinet || '' };
+}
+// Charge une ordonnance appartenant au médecin (sinon 404 déjà émis).
+async function loadOwnedOrdonnance(req, res) {
+  const evt = await db.getMedicalEventById(req.params.id);
+  if (!evt || evt.type !== 'ordonnance' || evt.medecin_id !== req.medecin.id) {
+    res.status(404).json({ error: 'Ordonnance introuvable' });
+    return null;
+  }
+  return evt;
+}
+
+// ── Création ──────────────────────────────────────────────────────
+app.post('/api/patients/:id/ordonnances', requireAuth, async (req, res) => {
+  const { prescriptions, status } = req.body;
+  const lines = (Array.isArray(prescriptions) ? prescriptions : []).map(sanitizeLine).filter((p) => p.medicament);
+  if (!lines.length) return res.status(400).json({ error: 'Au moins un médicament requis' });
+  try {
+    const patient = await loadOwnedPatient(req, res);
+    if (!patient) return;
+    const now = new Date().toISOString();
+    const st = status === 'active' ? 'active' : 'brouillon';
+    const data = {
+      patient: { nom: patient.nom, prenom: patient.prenom, dateNaissance: patient.date_naissance },
+      medecin: medecinBlock(req.medecin),
+      prescriptions: lines,
+      status: st,
+      date_debut: now,
+      date_fin: ordDateFin(lines, now),
+      version: 1,
+      history: [histEntry('cree', req.medecin)],
+      signed_at: st === 'active' ? now : null,
+      signed_by: st === 'active' ? medecinBlock(req.medecin) : null,
+    };
+    if (st === 'active') data.history.push(histEntry('signe', req.medecin));
+    const id = crypto.randomUUID();
+    const evt = await db.createMedicalEvent({ id, patientId: patient.id, medecinId: req.medecin.id, type: 'ordonnance', title: ordTitle(lines), data });
+    return res.json({ success: true, id, ordonnance: evt });
+  } catch (err) {
+    console.error('[ERROR ord create]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de la création de l'ordonnance" });
+  }
+});
+
+// ── Édition (brouillon uniquement) ───────────────────────────────
+app.put('/api/ordonnances/:id', requireAuth, async (req, res) => {
+  try {
+    const evt = await loadOwnedOrdonnance(req, res);
+    if (!evt) return;
+    const st = evt.data.status || 'active';
+    if (st !== 'brouillon') return res.status(409).json({ error: 'Ordonnance verrouillée — dupliquez ou renouvelez pour la modifier.' });
+    const lines = (Array.isArray(req.body.prescriptions) ? req.body.prescriptions : []).map(sanitizeLine).filter((p) => p.medicament);
+    if (!lines.length) return res.status(400).json({ error: 'Au moins un médicament requis' });
+    const debut = evt.data.date_debut || evt.event_date;
+    const data = { ...evt.data, prescriptions: lines, date_fin: ordDateFin(lines, debut), version: (evt.data.version || 1) + 1, history: [...(evt.data.history || []), histEntry('modifie', req.medecin)] };
+    const updated = await db.updateMedicalEventData(evt.id, data, ordTitle(lines));
+    return res.json({ success: true, ordonnance: updated });
+  } catch (err) {
+    console.error('[ERROR ord edit]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de la modification de l'ordonnance" });
+  }
+});
+
+// ── Signer (valider + verrouiller + horodater) ───────────────────
+app.post('/api/ordonnances/:id/sign', requireAuth, async (req, res) => {
+  try {
+    const evt = await loadOwnedOrdonnance(req, res);
+    if (!evt) return;
+    if ((evt.data.status || 'active') !== 'brouillon') return res.status(409).json({ error: 'Ordonnance déjà validée.' });
+    const now = new Date().toISOString();
+    const data = { ...evt.data, status: 'active', signed_at: now, signed_by: medecinBlock(req.medecin), history: [...(evt.data.history || []), histEntry('signe', req.medecin)] };
+    const updated = await db.updateMedicalEventData(evt.id, data);
+    return res.json({ success: true, ordonnance: updated });
+  } catch (err) {
+    return res.status(500).json({ error: "Erreur lors de la validation de l'ordonnance" });
+  }
+});
+
+// ── Renouveler (nouvelle ordonnance, ancienne archivée) ──────────
+app.post('/api/ordonnances/:id/renew', requireAuth, async (req, res) => {
+  try {
+    const evt = await loadOwnedOrdonnance(req, res);
+    if (!evt) return;
+    const now = new Date().toISOString();
+    const lines = (evt.data.prescriptions || []).map(sanitizeLine).filter((p) => p.medicament);
+    const newData = {
+      ...evt.data, status: 'active', date_debut: now, date_fin: ordDateFin(lines, now),
+      signed_at: now, signed_by: medecinBlock(req.medecin),
+      renewed_from: evt.id, renewed_at: now, version: 1,
+      history: [histEntry('cree', req.medecin, 'Renouvellement'), histEntry('signe', req.medecin)],
+    };
+    const newId = crypto.randomUUID();
+    const newEvt = await db.createMedicalEvent({ id: newId, patientId: evt.patient_id, medecinId: req.medecin.id, type: 'ordonnance', title: ordTitle(lines), data: newData });
+    // Archive l'ancienne
+    const oldData = { ...evt.data, status: 'archivee', history: [...(evt.data.history || []), histEntry('renouvele', req.medecin)] };
+    await db.updateMedicalEventData(evt.id, oldData);
+    return res.json({ success: true, id: newId, ordonnance: newEvt });
+  } catch (err) {
+    console.error('[ERROR ord renew]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors du renouvellement' });
+  }
+});
+
+// ── Arrêter un traitement ────────────────────────────────────────
+app.post('/api/ordonnances/:id/stop', requireAuth, async (req, res) => {
+  try {
+    const evt = await loadOwnedOrdonnance(req, res);
+    if (!evt) return;
+    const data = { ...evt.data, status: 'arretee', history: [...(evt.data.history || []), histEntry('arrete', req.medecin, req.body.motif || '')] };
+    const updated = await db.updateMedicalEventData(evt.id, data);
+    return res.json({ success: true, ordonnance: updated });
+  } catch (err) {
+    return res.status(500).json({ error: "Erreur lors de l'arrêt du traitement" });
+  }
+});
+
+// ── Dupliquer (nouveau brouillon) ────────────────────────────────
+app.post('/api/ordonnances/:id/duplicate', requireAuth, async (req, res) => {
+  try {
+    const evt = await loadOwnedOrdonnance(req, res);
+    if (!evt) return;
+    const now = new Date().toISOString();
+    const lines = (evt.data.prescriptions || []).map(sanitizeLine).filter((p) => p.medicament);
+    const data = {
+      ...evt.data, status: 'brouillon', date_debut: now, date_fin: ordDateFin(lines, now),
+      signed_at: null, signed_by: null, renewed_from: null, renewed_at: null, version: 1,
+      history: [histEntry('cree', req.medecin, 'Duplication')],
+    };
+    const newId = crypto.randomUUID();
+    const newEvt = await db.createMedicalEvent({ id: newId, patientId: evt.patient_id, medecinId: req.medecin.id, type: 'ordonnance', title: ordTitle(lines), data });
+    return res.json({ success: true, id: newId, ordonnance: newEvt });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la duplication' });
+  }
+});
+
+// ── Supprimer (brouillon uniquement) ─────────────────────────────
+app.delete('/api/ordonnances/:id', requireAuth, async (req, res) => {
+  try {
+    const evt = await loadOwnedOrdonnance(req, res);
+    if (!evt) return;
+    if ((evt.data.status || 'active') !== 'brouillon') return res.status(409).json({ error: 'Seul un brouillon peut être supprimé.' });
+    await db.deleteMedicalEvent(evt.id);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la suppression' });
+  }
+});
+
 // ────────────────────────────────────────────────────────────────────
 // POST /api/patients/:id/activate-portal  (côté médecin)
 // Génère un identifiant + mot de passe temporaire pour CE dossier
