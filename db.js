@@ -292,6 +292,18 @@ async function initDb() {
     );
   `);
 
+  // ── Favoris (Sprint 8 Lot 3) — épingles du médecin ──────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS favorites (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      item_type TEXT NOT NULL,
+      item_id UUID NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_uniq ON favorites(medecin_id, item_type, item_id);`);
+
   console.log('DEBUG - Base de données : tables vérifiées/créées avec succès');
 }
 
@@ -847,6 +859,42 @@ async function savePatientEvolution({ patientId, data, sourceEventsCount, tokens
   return result.rows[0];
 }
 
+// ── Favoris (Sprint 8 Lot 3) ──────────────────────────────────────
+
+// Bascule : ajoute si absent (renvoie favorited=true), retire si présent.
+async function toggleFavorite(medecinId, itemType, itemId) {
+  const existing = await pool.query(
+    `SELECT id FROM favorites WHERE medecin_id = $1 AND item_type = $2 AND item_id = $3`,
+    [medecinId, itemType, itemId]
+  );
+  if (existing.rows[0]) {
+    await pool.query(`DELETE FROM favorites WHERE id = $1`, [existing.rows[0].id]);
+    return { favorited: false };
+  }
+  await pool.query(
+    `INSERT INTO favorites (id, medecin_id, item_type, item_id) VALUES ($1, $2, $3, $4)`,
+    [crypto.randomUUID(), medecinId, itemType, itemId]
+  );
+  return { favorited: true };
+}
+
+// Liste résolue : patients épinglés + événements (documents) épinglés.
+async function listFavorites(medecinId) {
+  const patients = await pool.query(
+    `SELECT f.item_id AS id, p.nom, p.prenom, f.created_at
+       FROM favorites f JOIN patients p ON p.id = f.item_id
+      WHERE f.medecin_id = $1 AND f.item_type = 'patient' ORDER BY f.created_at DESC`,
+    [medecinId]
+  );
+  const events = await pool.query(
+    `SELECT f.item_id AS id, e.type, e.title, e.patient_id, e.event_date, p.nom AS patient_nom, p.prenom AS patient_prenom, f.created_at
+       FROM favorites f JOIN medical_events e ON e.id = f.item_id JOIN patients p ON p.id = e.patient_id
+      WHERE f.medecin_id = $1 AND f.item_type = 'event' ORDER BY f.created_at DESC`,
+    [medecinId]
+  );
+  return { patients: patients.rows, events: events.rows, ids: [...patients.rows, ...events.rows].map((r) => r.id) };
+}
+
 module.exports = {
   pool,
   initDb,
@@ -908,4 +956,6 @@ module.exports = {
   deleteKeyFact,
   getPatientEvolution,
   savePatientEvolution,
+  toggleFavorite,
+  listFavorites,
 };

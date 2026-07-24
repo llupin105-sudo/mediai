@@ -1576,6 +1576,41 @@ app.delete('/api/ordonnances/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ════════════════════════════════════════════════════════════════════
+// FAVORIS (Sprint 8 Lot 3) — épingles patients / documents.
+// ════════════════════════════════════════════════════════════════════
+app.get('/api/favorites', requireAuth, async (req, res) => {
+  try {
+    const data = await db.listFavorites(req.medecin.id);
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    console.error('[ERROR favorites list]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la récupération des favoris' });
+  }
+});
+
+// Bascule un favori. Vérifie l'appartenance de l'item au médecin.
+app.post('/api/favorites', requireAuth, async (req, res) => {
+  const { itemType, itemId } = req.body;
+  if (!['patient', 'event'].includes(itemType) || !itemId) {
+    return res.status(400).json({ error: 'Favori invalide' });
+  }
+  try {
+    if (itemType === 'patient') {
+      const patient = await db.getPatientById(itemId);
+      if (!patient || patient.medecin_id !== req.medecin.id) return res.status(404).json({ error: 'Patient introuvable' });
+    } else {
+      const evt = await db.getMedicalEventById(itemId);
+      if (!evt || evt.medecin_id !== req.medecin.id) return res.status(404).json({ error: 'Document introuvable' });
+    }
+    const result = await db.toggleFavorite(req.medecin.id, itemType, itemId);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[ERROR favorite toggle]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la mise à jour du favori' });
+  }
+});
+
 // ────────────────────────────────────────────────────────────────────
 // POST /api/patients/:id/activate-portal  (côté médecin)
 // Génère un identifiant + mot de passe temporaire pour CE dossier
