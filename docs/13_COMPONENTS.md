@@ -15,7 +15,10 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/app.html` (app mé
 | **Rail « À retenir »** (Sprint 7) | `renderKeyFacts`, `buildDerivedFacts`, `keyFactModal`, `#keyFactsRail`, `.kf-*` — allergies/antécédents/maladies chroniques éditables + dérivé. |
 | **Vue Évolution** (Sprint 7) | `renderEvolution`, `fetchEvolution`, `setRecordView`, `#evolutionView`, `.evo-*` — tendances descriptives. |
 | **Événement manuel** (Sprint 7) | `openEventModal`, `submitEvent` ; `TL_TYPES` élargi (🏥🚑💉📞📄🧬). |
-| **Module Ordonnance** (Sprint 8) | `openOrdonnanceEditor`, `renderOrdEditor`, `ordSaveDraft`/`ordSign`/`ordRenew`/`ordStop`/`ordDuplicate`/`ordDelete`/`ordExportPdf`, `.ord-*` — éditeur en modale floutée + historique. |
+| **Module Ordonnance** (Sprint 8 Lot 1) | `openOrdonnanceEditor`, `renderOrdEditor`, `ordSaveDraft`/`ordSign`/`ordRenew`/`ordStop`/`ordDuplicate`/`ordDelete`/`ordExportPdf`, `.ord-*` — éditeur en modale floutée + historique. |
+| **Action Bar + Quick Create** (Sprint 8 Lot 2) | `ensureActionBar`, `ACTION_BAR`, `openQuickCreate`, `openQuickNote`, `withPatient`, `.abar-*` ; raccourcis clavier `SHORTCUTS` + `closeTopOverlay` (N/C/O/A/D · ⌘K · Esc). |
+| **Centre documentaire + Favoris** (Sprint 8 Lot 3) | `renderDocumentCenter`, `renderDocTabs`/`renderDocList`/`renderDocFavorites`, `setDocTab`/`onDocSearch`, `.dc-*` ; `fetchFavorites`/`toggleFavoriteItem`/`togglePatientFavorite`/`toggleDocFavorite`, `.fav-chip`. Vue `#view-documents` (sidebar « Documents »). |
+| **Micro-interactions** (Sprint 8 Lot 4) | `ensureMicroStyles` (`.mi-stagger`, focus-visible, press, scroll fluide, `prefers-reduced-motion`) ; pagination `.dc-more`. |
 
 ## App médecin (`app.html`)
 

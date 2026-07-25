@@ -123,6 +123,10 @@ L'ordonnance reste un `medical_event` type `ordonnance` dont le `data` JSONB est
 
 **Types d'événements** (`medical_events.type`) élargis au Sprint 7 : + `hospitalisation`, `urgences`, `vaccination`, `teleconsultation`, `document`, `analyse_ia`.
 
+### Favoris (Sprint 8 Lot 3)
+
+- **`favorites`** — épingles du médecin : `medecin_id`, `item_type` (`patient`|`event`), `item_id`, index unique `(medecin_id, item_type, item_id)`. Résolu à la lecture (join `patients` / `medical_events`).
+
 ## Conventions
 
 - **Clés primaires** : `UUID` générés côté application (`crypto.randomUUID()`), jamais de séquences auto-incrémentées.

@@ -167,6 +167,7 @@ Détail des contrats dans le code (`server.js`). Vue synthétique :
 | **Messagerie** | `GET/POST /api/threads` · `GET/POST /api/threads/:id/messages` · `POST /api/threads/:id/read` |
 | **Dossier intelligent (Sprint 7)** | `POST /api/patients/:id/events` (événement manuel) · CRUD `/api/patients/:id/key-facts` · `GET /api/patients/:id/evolution` |
 | **Module Ordonnance (Sprint 8)** | `POST /api/patients/:id/ordonnances` · `PUT /api/ordonnances/:id` · `/sign` · `/renew` · `/stop` · `/duplicate` · `DELETE /api/ordonnances/:id` |
+| **Favoris (Sprint 8)** | `GET /api/favorites` · `POST /api/favorites` (bascule) |
 | Portail patient | `POST /api/patient-auth/login` · `GET /api/patient/me` · `/api/patient/timeline` |
 | Facturation | `POST /api/create-checkout-session` · `GET /api/verify-session` · `POST /api/stripe/webhook` |
 | Divers | `POST /api/send-report-email` · `GET /health` |

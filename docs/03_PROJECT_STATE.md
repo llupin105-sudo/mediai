@@ -60,7 +60,7 @@
 - **Porte d'entrée** : `index.html` = landing officielle (`/`) ; `app.html` = app médecin (`/app`, connexion directe, Google fiabilisé) ; `patient.html` (`/patient`). L'ancien marketing intégré à l'app est retiré ; déconnexion → `/`.
 - **Dashboard « Aurora »** : Home refondue (bandeau navy + 4 cartes), **supersède** le cockpit à widgets du Sprint 6.
 - **Sprint 7 — Dossier intelligent** : rail « À retenir » éditable, Chronologie/Évolution, 6 nouveaux types d'événements, ＋ Événement.
-- **Sprint 8 Lot 1 — Module Ordonnance** : éditeur complet (brouillon/signature/renouvellement/duplication/arrêt/PDF/historique). Restant : Lots 2 (Action Bar + Quick Create + raccourcis), 3 (Documents + Favoris), 4 (polish/perf).
+- **Sprint 8 — Clinical Workspace : COMPLET** (Lots 1-4). Lot 1 module Ordonnance (éditeur complet) ; Lot 2 Action Bar + Quick Create + raccourcis clavier ; Lot 3 Centre documentaire + Favoris (table `favorites`) ; Lot 4 micro-interactions & performance (pagination).
 - Note dette : ⚠️ le frontend `app.html` dépasse ~5700 lignes (monofichier) — extraction à envisager. La collision `.ckpt-*` a été résolue via namespaces (`.aur-*`, `.ord-*`).
 
 **Sprint 6 — MediAI Cockpit (la Home devient le cerveau) — Lots 1 & 2 livrés (2026-07-19)**

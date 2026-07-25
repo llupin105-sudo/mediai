@@ -13,7 +13,15 @@ L'ordonnance cesse d'être un document généré : c'est un **vrai module**, dé
 - **Frontend** : éditeur d'ordonnance en modale floutée (`openOrdonnanceEditor`) — lignes éditables, brouillon → **Signer** (validation + verrouillage + horodatage + RPPS, **jamais** une signature électronique légale), **Renouveler en 1 clic** (ancienne archivée, historique conservé), Dupliquer, Arrêter, Exporter PDF, panneau Historique. Ouverture depuis la fiche et la timeline.
 - **Transparence** : « Signer » n'est pas présenté comme une signature électronique qualifiée (eIDAS/CPS = chantier conformité séparé).
 
-### Reste (Sprint 8) : Lot 2 (Action Bar + Quick Create + raccourcis), Lot 3 (Centre documentaire + Favoris), Lot 4 (micro-interactions & perf).
+### Lot 2 — Action Bar + Quick Create + raccourcis (frontend)
+- **Action Bar** flottante navy (toujours visible en app-mode, masquée en Mode Focus) : Consultation, Ordonnance, Analyse, Imagerie, Courrier, Note, Document, PDF, Partager — route vers les flux existants. **Quick Create** (`openQuickCreate`) + Note rapide en modale floutée. **Raccourcis clavier** : N/C/O/A/D, ⌘K (recherche), Esc (ferme la modale du dessus ; écran de connexion non-fermable).
+
+### Lot 3 — Centre documentaire + Favoris (backend + frontend)
+- **Backend** : table `favorites` (`item_type` patient|event, unique). `GET /api/favorites` (liste résolue) · `POST /api/favorites` (bascule, vérifie l'appartenance).
+- **Frontend** : vue « Documents » (sidebar) — onglets par type + recherche **instantanés** + épingle par document ; section **Favoris** (patients + documents) ; bouton **★ Épingler** sur la fiche patient.
+
+### Lot 4 — micro-interactions & performance (frontend)
+- Pack `ensureMicroStyles` : focus-visible, press des boutons, entrées échelonnées (`mi-stagger`), scroll fluide, hover lift — neutralisés sous `prefers-reduced-motion`. Centre documentaire : **pagination « Voir plus »** (pages de 40).
 
 ---
 
