@@ -19,6 +19,9 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/app.html` (app mé
 | **Action Bar + Quick Create** (Sprint 8 Lot 2) | `ensureActionBar`, `ACTION_BAR`, `openQuickCreate`, `openQuickNote`, `withPatient`, `.abar-*` ; raccourcis clavier `SHORTCUTS` + `closeTopOverlay` (N/C/O/A/D · ⌘K · Esc). |
 | **Centre documentaire + Favoris** (Sprint 8 Lot 3) | `renderDocumentCenter`, `renderDocTabs`/`renderDocList`/`renderDocFavorites`, `setDocTab`/`onDocSearch`, `.dc-*` ; `fetchFavorites`/`toggleFavoriteItem`/`togglePatientFavorite`/`toggleDocFavorite`, `.fav-chip`. Vue `#view-documents` (sidebar « Documents »). |
 | **Micro-interactions** (Sprint 8 Lot 4) | `ensureMicroStyles` (`.mi-stagger`, focus-visible, press, scroll fluide, `prefers-reduced-motion`) ; pagination `.dc-more`. |
+| **Auth — reset mot de passe** (Sprint 9 Étape 1) | `openForgotPassword`/`submitForgot`, `openResetPassword`/`submitReset`, `authOverlay` ; lien `#authForgot` ; arrivée `/app?reset=<token>`. |
+| **Design system** (Sprint 9 Étape 2) | tokens `--space-1…8`, `--accent*` ; bouton canonique `.btn` (+ `primary/ghost/danger/sm`) ; normalisation transversale (rayon cartes `--r-lg`, focus champs). |
+| **États chargement/vide/erreur** (Sprint 9 Étape 3) | `apiFetch` (traçage connectivité), bandeau `#connBanner` (`markOffline`/`markOnline`/`pingHealth`), `showErrorModal({icon,title,text,retry})` réutilisable (réseau/introuvable/serveur), skeletons + `emptyState` existants. |
 
 ## App médecin (`app.html`)
 
