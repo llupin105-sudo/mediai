@@ -56,4 +56,47 @@ async function sendReportEmail({ recipientEmail, pdfBase64, senderName, resume }
   return true;
 }
 
-module.exports = { sendReportEmail };
+/**
+ * Envoie un lien de réinitialisation de mot de passe (Sprint 9).
+ * Le lien contient un jeton court ; aucune donnée sensible dans l'email.
+ * @throws {Error} err.code === 'NOT_CONFIGURED' si le service n'est pas configuré
+ */
+async function sendPasswordResetEmail({ recipientEmail, resetUrl }) {
+  if (!process.env.RESEND_API_KEY) {
+    const err = new Error("Envoi d'email non configuré côté serveur");
+    err.code = 'NOT_CONFIGURED';
+    throw err;
+  }
+  const fromAddress = process.env.EMAIL_FROM || 'MediAI <onboarding@resend.dev>';
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: fromAddress,
+      to: [recipientEmail],
+      subject: 'Réinitialisation de votre mot de passe MediAI',
+      html: `
+        <div style="font-family: sans-serif; color: #0A1128; max-width: 480px;">
+          <p>Bonjour,</p>
+          <p>Vous avez demandé à réinitialiser votre mot de passe MediAI. Ce lien est valable 30 minutes :</p>
+          <p style="margin: 24px 0;">
+            <a href="${resetUrl}" style="background:#1460FF;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;display:inline-block;">Réinitialiser mon mot de passe</a>
+          </p>
+          <p style="font-size: 13px; color: #48566E;">Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email — votre mot de passe reste inchangé.</p>
+        </div>
+      `,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Erreur d'envoi Resend (${res.status}) ${errText}`);
+  }
+  return true;
+}
+
+module.exports = { sendReportEmail, sendPasswordResetEmail };

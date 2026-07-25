@@ -36,7 +36,7 @@ const cockpit = require('./cockpit');
 // Changer de fournisseur IA / transcription / email = modifier 1 fichier.
 const { callClaude } = require('./services/ia');
 const { transcribeAudio } = require('./services/transcription');
-const { sendReportEmail } = require('./services/email');
+const { sendReportEmail, sendPasswordResetEmail } = require('./services/email');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -390,6 +390,10 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
   try {
     const user = await db.getUserByEmail(normalizedEmail);
+    // Message orienté action : un compte Google n'a pas de mot de passe.
+    if (user && !user.passwordHash) {
+      return res.status(401).json({ error: 'Ce compte utilise la connexion Google — utilisez « Continuer avec Google ».', useGoogle: true });
+    }
     if (!user || !(await bcrypt.compare(password || '', user.passwordHash))) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
@@ -399,6 +403,68 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   } catch (err) {
     console.error('[ERROR login]', err.message);
     return res.status(500).json({ error: 'Erreur lors de la connexion' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/auth/forgot-password  (Sprint 9)
+// Envoie un lien de réinitialisation. Réponse TOUJOURS 200 (on ne révèle
+// pas si l'email existe). Jeton JWT court (30 min), aucune table.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
+  const normalizedEmail = (req.body.email || '').trim().toLowerCase();
+  try {
+    if (normalizedEmail && normalizedEmail.includes('@')) {
+      const user = await db.getUserByEmail(normalizedEmail);
+      // On n'envoie un lien QUE pour un compte avec mot de passe.
+      if (user && user.passwordHash) {
+        const resetToken = jwt.sign({ email: normalizedEmail, purpose: 'reset' }, JWT_SECRET, { expiresIn: '30m' });
+        const origin = isOriginAllowed(req.headers.origin) ? req.headers.origin : 'https://mediai-site.vercel.app';
+        const resetUrl = `${origin}/app?reset=${resetToken}`;
+        try {
+          await sendPasswordResetEmail({ recipientEmail: normalizedEmail, resetUrl });
+        } catch (mailErr) {
+          // Email non configuré / échec : on ne révèle rien à l'appelant.
+          console.error('[forgot-password] envoi email impossible', req.requestId, mailErr.code || mailErr.message);
+        }
+      }
+    }
+    // Réponse uniforme, sans divulgation.
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ERROR forgot-password]', req.requestId, err.message);
+    return res.json({ success: true });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/auth/reset-password  (Sprint 9)
+// Vérifie le jeton, définit le nouveau mot de passe, connecte l'utilisateur.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
+  const { token, password } = req.body;
+  if (!token) return res.status(400).json({ error: 'Lien de réinitialisation manquant' });
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'Mot de passe trop court (8 caractères minimum)' });
+  }
+  let payload;
+  try {
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return res.status(400).json({ error: 'Lien invalide ou expiré — refaites une demande.' });
+  }
+  if (payload.purpose !== 'reset' || !payload.email) {
+    return res.status(400).json({ error: 'Lien invalide.' });
+  }
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await db.updateUserPassword(payload.email, passwordHash);
+    if (!user) return res.status(400).json({ error: 'Compte introuvable.' });
+    const authToken = jwt.sign({ email: payload.email }, JWT_SECRET, { expiresIn: '30d' });
+    return res.json({ token: authToken, user: publicUser(user) });
+  } catch (err) {
+    console.error('[ERROR reset-password]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la réinitialisation' });
   }
 });
 

@@ -372,6 +372,17 @@ async function updateUserProfile(email, { nom, rpps, cabinet, telephone, special
   return rowToUser(result.rows[0]);
 }
 
+// Réinitialisation du mot de passe (Sprint 9). Passe aussi le compte en
+// auth_provider='password' au cas où (compte créé via Google qui définit
+// ensuite un mot de passe — cohérence).
+async function updateUserPassword(email, passwordHash) {
+  const result = await pool.query(
+    `UPDATE users SET password_hash = $1, auth_provider = 'password' WHERE email = $2 RETURNING *`,
+    [passwordHash, email]
+  );
+  return rowToUser(result.rows[0]);
+}
+
 async function updateUserPreferences(email, { defaultSpecialite, instructions }) {
   const result = await pool.query(
     `UPDATE users SET pref_default_specialite = $1, pref_instructions = $2 WHERE email = $3 RETURNING *`,
@@ -902,6 +913,7 @@ module.exports = {
   getUserByEmail,
   findOrCreateGoogleUser,
   updateUserProfile,
+  updateUserPassword,
   updateUserPreferences,
   incrementFreeUsage,
   setUserPro,
