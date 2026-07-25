@@ -14,7 +14,7 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 | 2 | 🟠 | `DROP TABLE compte_rendus` | Table legacy retirée du code ; exécuter le `DROP` manuel sur les bases existantes après vérification. → [07_DATABASE.md](07_DATABASE.md). |
 | 3 | 🟠 | Quota = 2 crédits/consultation | Transcription + analyse consomment 2 crédits sur 3. Relever `FREE_LIMIT` ou exclure les endpoints légers. → [08_AI_SYSTEM.md](08_AI_SYSTEM.md). |
 | 4 | 🟠 | Tokens `--sage*` mal nommés | Héritage de l'ancienne identité verte, pointent vers le bleu. Renommer en `--accent*`. → [04_DESIGN_SYSTEM.md](04_DESIGN_SYSTEM.md). |
-| 5 | 🟠 | Échelle d'espacement non tokenisée | Introduire `--space-*` (échelle 4 px) dans le frontend. |
+| 5 | ✅ | Échelle d'espacement tokenisée | `--space-1…8` (base 4 px) introduits (Sprint 9). Alias `--accent*` + bouton canonique `.btn` ajoutés. |
 | 6 | 🟠 | Stockage de documents | PDF générés côté client, non stockés → timeline documents patient incomplète. Décider un stockage objet S3-compatible (aligné HDS). |
 | 7 | 🟢 | Anonymisation des tiers | Noms de confrères cités sans civilité restent best-effort (nécessiterait un NER). |
 | 8 | 🟢 | Rate limiting en mémoire | Passer à un store Redis en cas de scaling horizontal. |

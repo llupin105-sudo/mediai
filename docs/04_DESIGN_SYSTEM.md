@@ -63,7 +63,20 @@ Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Line
 
 ## 3. Espacements
 
-⚠️ **Il n'existe pas encore d'échelle d'espacement tokenisée** (`--space-*`). Les marges/paddings sont aujourd'hui ad hoc. **Recommandation officielle** : utiliser une échelle 4 px (4 / 8 / 12 / 16 / 24 / 32 / 48). La tokenisation est une tâche de [14_BACKLOG.md](14_BACKLOG.md) ; en attendant, s'aligner sur les valeurs existantes des composants voisins.
+**Échelle d'espacement tokenisée (Sprint 9)** — source unique, base 4 px. Utiliser ces tokens plutôt que des valeurs magiques :
+
+| Token | Valeur |
+|---|---|
+| `--space-1` | 4px |
+| `--space-2` | 8px |
+| `--space-3` | 12px |
+| `--space-4` | 16px |
+| `--space-5` | 24px |
+| `--space-6` | 32px |
+| `--space-7` | 48px |
+| `--space-8` | 64px |
+
+**Alias sémantiques (Sprint 9)** : `--accent` / `--accent-deep` / `--accent-tint` (pointent vers le bleu ; remplacent progressivement `--sage*`, conservés par compat).
 
 ---
 
@@ -97,6 +110,8 @@ Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Line
 | `--btn-h` | `42px` (hauteur unifiée de **tous** les boutons) |
 | `--btn-radius` | `var(--r-md)` |
 | `--btn-transition` | `background .16s, border-color .16s, color .16s, transform .1s, box-shadow .16s` |
+
+**Bouton canonique (Sprint 9)** — composant réutilisable `.btn` + variantes `.btn-primary` / `.btn-ghost` / `.btn-danger` / `.btn-sm` (hauteur `--btn-h`, rayon `--btn-radius`, transition `--btn-transition`, press + focus). À utiliser pour tout nouveau bouton ; les classes historiques (`.btn-export`, `.ord-btn`, `.abar-b`, `.dc-tab`…) sont conservées et alignées sur les mêmes tokens (rayon des cartes unifié à `--r-lg`, focus des champs unifié via `--accent`).
 
 ---
 
