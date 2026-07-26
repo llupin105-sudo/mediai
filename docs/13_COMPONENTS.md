@@ -24,6 +24,7 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/app.html` (app mé
 | **États chargement/vide/erreur** (Sprint 9 Étape 3) | `apiFetch` (traçage connectivité), bandeau `#connBanner` (`markOffline`/`markOnline`/`pingHealth`), `showErrorModal({icon,title,text,retry})` réutilisable (réseau/introuvable/serveur), skeletons + `emptyState` existants. |
 | **Notifications élevées** (Sprint 9 Étape 5) | `renderNotifCenter`/`updateNotifBadge`/`NOTIF_META` étendus à tous les types + **RDV à venir** (source réelle `appointments` via `fetchUpcomingAppointments`, `apptNotifHtml`). 100% déterministe. « Patient arrivé »/« Téléconsultation » reportés (pas d'infra). |
 | **Recherche universelle** (Sprint 9 Étape 5) | ⌘K `runCommandPaletteSearch` élevé : Actions + Patients + **Documents (tous types via `TL_TYPES`)** + **Rendez-vous**, instantané (cache client), navigation clavier. |
+| **Accessibilité** (Sprint 9 Étape 7) | `aria-live` sur les toasts, `role="dialog"`/`alertdialog` + `aria-modal` sur les overlays (`rec-ov`, `ord-ov`, `auth-ov`, `err-ov`), `aria-label` sur la recherche, focus-visible + Esc (déjà posés). Perf : appels clés via `apiFetch` (connectivité), caches événements/favoris/RDV. |
 
 ## App médecin (`app.html`)
 
