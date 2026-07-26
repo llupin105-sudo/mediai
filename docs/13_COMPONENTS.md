@@ -22,6 +22,8 @@ Inventaire des composants UI de MediAI. Source : `mediai-site/app.html` (app mé
 | **Auth — reset mot de passe** (Sprint 9 Étape 1) | `openForgotPassword`/`submitForgot`, `openResetPassword`/`submitReset`, `authOverlay` ; lien `#authForgot` ; arrivée `/app?reset=<token>`. |
 | **Design system** (Sprint 9 Étape 2) | tokens `--space-1…8`, `--accent*` ; bouton canonique `.btn` (+ `primary/ghost/danger/sm`) ; normalisation transversale (rayon cartes `--r-lg`, focus champs). |
 | **États chargement/vide/erreur** (Sprint 9 Étape 3) | `apiFetch` (traçage connectivité), bandeau `#connBanner` (`markOffline`/`markOnline`/`pingHealth`), `showErrorModal({icon,title,text,retry})` réutilisable (réseau/introuvable/serveur), skeletons + `emptyState` existants. |
+| **Notifications élevées** (Sprint 9 Étape 5) | `renderNotifCenter`/`updateNotifBadge`/`NOTIF_META` étendus à tous les types + **RDV à venir** (source réelle `appointments` via `fetchUpcomingAppointments`, `apptNotifHtml`). 100% déterministe. « Patient arrivé »/« Téléconsultation » reportés (pas d'infra). |
+| **Recherche universelle** (Sprint 9 Étape 5) | ⌘K `runCommandPaletteSearch` élevé : Actions + Patients + **Documents (tous types via `TL_TYPES`)** + **Rendez-vous**, instantané (cache client), navigation clavier. |
 
 ## App médecin (`app.html`)
 
