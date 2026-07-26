@@ -1782,6 +1782,39 @@ app.get('/api/patient/timeline', requirePatientAuth, async (req, res) => {
   }
 });
 
+// ── Portail patient — rendez-vous & messagerie (lecture seule, Sprint 9) ──
+// Le patient ne voit, par construction, que SES données (req.patient.id).
+app.get('/api/patient/appointments', requirePatientAuth, async (req, res) => {
+  try {
+    const items = await db.listAppointmentsByPatient(req.patient.id);
+    return res.json({ items });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la récupération des rendez-vous' });
+  }
+});
+
+app.get('/api/patient/threads', requirePatientAuth, async (req, res) => {
+  try {
+    const items = await db.listThreadsByPatient(req.patient.id);
+    return res.json({ items });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la récupération des conversations' });
+  }
+});
+
+app.get('/api/patient/threads/:id/messages', requirePatientAuth, async (req, res) => {
+  try {
+    const thread = await db.getThreadById(req.params.id);
+    if (!thread || thread.patient_id !== req.patient.id) {
+      return res.status(404).json({ error: 'Conversation introuvable' });
+    }
+    const messages = await db.listMessages(thread.id);
+    return res.json({ thread, messages });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
+  }
+});
+
 // ════════════════════════════════════════════════════════════════════
 // COCKPIT (Sprint 6) — la Home devient le cerveau de MediAI
 // ════════════════════════════════════════════════════════════════════

@@ -54,6 +54,21 @@ Le système d'auth patient est **totalement distinct** de celui du médecin :
 | `POST /api/patient-auth/login` | publique | Connexion patient → JWT patient |
 | `GET /api/patient/me` | patient | Profil du patient + coordonnées de son médecin |
 | `GET /api/patient/timeline` | patient | Chronologie de **ses** événements |
+| `GET /api/patient/appointments` | patient | **Sprint 9** — ses rendez-vous (lecture seule) |
+| `GET /api/patient/threads` | patient | **Sprint 9** — ses conversations (lecture seule) |
+| `GET /api/patient/threads/:id/messages` | patient | **Sprint 9** — messages d'un fil (vérif appartenance) |
+
+## Structure (Sprint 9)
+
+Le portail est organisé en 8 sections. Navigation : **tabbar** (5 onglets : Accueil · Rendez-vous · Documents · Messages · Profil) en mobile, **sidebar** en desktop (≥ 820 px). Ordonnances & Résultats sont accessibles en filtres du centre Documents et en raccourcis d'accueil.
+
+| Section | État |
+|---|---|
+| Accueil, Ordonnances, Résultats, Documents, Profil | Réel (dérivé de `/api/patient/timeline` + `/me`) |
+| Mes rendez-vous, Messagerie | Réel **lecture seule** (endpoints ci-dessus) |
+| Prendre rendez-vous | Placeholder « bientôt » (infra de créneaux à venir) |
+
+> Correctif Sprint 9 : la sidebar desktop débordait en mobile (pas de `display:none` par défaut) — corrigé.
 
 ---
 

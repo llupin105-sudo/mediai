@@ -614,6 +614,15 @@ async function getAppointmentById(id) {
   return result.rows[0] || null;
 }
 
+// Portail patient (Sprint 9) — le patient consulte SES rendez-vous.
+async function listAppointmentsByPatient(patientId) {
+  const result = await pool.query(
+    `SELECT id, start_at, end_at, motif, mode, status FROM appointments WHERE patient_id = $1 ORDER BY start_at DESC`,
+    [patientId]
+  );
+  return result.rows;
+}
+
 async function updateAppointment(id, fields) {
   const allowed = ['patient_id', 'patient_label', 'start_at', 'end_at', 'motif', 'mode', 'status', 'notes'];
   const sets = [], params = [];
@@ -756,6 +765,16 @@ async function listThreadsByMedecin(medecinId) {
 async function getThreadById(id) {
   const result = await pool.query(`SELECT * FROM message_threads WHERE id = $1`, [id]);
   return result.rows[0] || null;
+}
+
+// Portail patient (Sprint 9) — le patient consulte SES conversations.
+async function listThreadsByPatient(patientId) {
+  const result = await pool.query(
+    `SELECT t.*, (SELECT COUNT(*)::int FROM messages m WHERE m.thread_id = t.id AND m.sender_type='medecin' AND m.read_by_patient_at IS NULL) AS unread
+       FROM message_threads t WHERE t.patient_id = $1 ORDER BY t.last_message_at DESC`,
+    [patientId]
+  );
+  return result.rows;
 }
 
 async function createThread({ id, medecinId, patientId, subject }) {
@@ -953,6 +972,8 @@ module.exports = {
   deleteWorkspaceLayout,
   countUnreadMessagesForMedecin,
   listThreadsByMedecin,
+  listThreadsByPatient,
+  listAppointmentsByPatient,
   getThreadById,
   createThread,
   listMessages,
