@@ -149,7 +149,14 @@ Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Line
 
 ## 9. Responsive
 
-- **App médecin** (`app.html`, `/app`) : pensée desktop en priorité (usage station de travail). Sidebar réductible (250 px → 64 px avec tooltips). Le confort tablette/mobile est une amélioration ouverte ([14_BACKLOG.md](14_BACKLOG.md)).
+- **App médecin** (`app.html`, `/app`) : pensée desktop en priorité (usage station de travail). Sidebar réductible (250 px → 64 px avec tooltips).
+- **Passe de sécurité responsive (Sprint 9 Étape 4)** : audit à 768 px et 375 px — **aucun débordement horizontal**, sidebar off-canvas, grilles qui se replient (`.piw-layout` ≤ 1000 px, `.ckpt-grid` ≤ 900 px), Action Bar scrollable. L'app reste desktop-first (poste de travail) ; une optimisation mobile poussée n'est **pas** l'objectif.
+
+## 11. Icônes (politique — Sprint 9)
+
+Choix délibéré, pas une incohérence :
+- **Chrome / navigation** (sidebar, topbar, boutons système) : **icônes trait (SVG)**, sobres et monochromes.
+- **Types d'événements cliniques** (🩺 consultation, 💊 ordonnance, 📈 analyse, 📷 imagerie, 🏥 hospitalisation, 🚑 urgences, 💉 vaccin, 📞 téléconsult, 📄 document, 🧬 analyse IA) : **emojis**, pour une **lecture couleur instantanée** dans les timelines et le centre documentaire. Un même type = toujours le même emoji (source : `TL_TYPES`).
 - **Portail patient** (`patient.html`) : pensé **mobile-first** (tabbar bas d'écran, `padding-bottom` réservé). C'est le bon modèle pour un usage patient ponctuel.
 
 ---
