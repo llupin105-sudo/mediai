@@ -43,6 +43,7 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 - **Compte patient unique** multi-médecins.
 - Recherche de praticien (fondations déjà dans `profile_specialite` / `profile_presentation`).
 - Envoi automatique des identifiants portail au patient (email), une fois un fournisseur email UE en place.
+- **Activer « Sign in with Apple »** (Sprint 11 Étape 6) : le bouton « Continuer avec Apple » est posé dans l'écran de connexion en état « bientôt » (message franc, `appleSignInPending()`). Activation bloquée par des prérequis à fournir : **compte Apple Developer** (payant) → **Services ID** + **clé privée (.p8)** + **Team ID/Key ID** + **URL de retour** autorisée, puis SDK `AppleID.auth` côté front + endpoint backend de vérification du token d'identité (analogue à `/api/auth/google`).
 
 ---
 
