@@ -2,15 +2,16 @@
 
 > **État vivant du projet.** À mettre à jour à la fin de chaque session de travail significative. C'est le fichier qu'on lit pour savoir « où on en est ».
 
-**Version produit :** 1.0 (préparation bêta interne)
-**Dernière consolidation :** 2026-07-17 (Phase 0 — professionnalisation)
+**Version produit :** V1 (qualité commercialisable atteinte — Sprint 9)
+**Dernière consolidation :** 2026-07-20 (Sprint 9 — stabilisation / premium UX)
 
 ---
 
 ## Vue d'ensemble
 
-- Le **backend est fonctionnel, stabilisé et sécurisé**.
-- Le **frontend** (repo `mediai-site`) est en cours de polish premium (Phase 2).
+- **Sprint 9 terminé** : qualité de niveau **V1 commercialisable** (auth complète, design system appliqué, états d'erreur/chargement, uniformisation, notifications + recherche universelle, portail patient structuré, accessibilité). Détail : [CHANGELOG.md](CHANGELOG.md).
+- Le **backend est fonctionnel, stabilisé et sécurisé** ; le **frontend** (app médecin Aurora + portail patient) est poli et cohérent.
+- **Bloqueur avant vrais patients : conformité HDS** (hébergement + transcription + socle RGPD). → [10_SECURITY.md](10_SECURITY.md).
 - **Aucune vraie donnée patient** n'est autorisée tant que l'infra n'est pas HDS (données synthétiques uniquement).
 
 ---

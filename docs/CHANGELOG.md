@@ -4,6 +4,23 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 9 · Stabilisation / Premium UX / V1 — 2026-07-20
+
+Sprint entièrement dédié à la qualité (procédé par étapes validées, sans casser l'existant). MediAI atteint le niveau d'une **V1 commercialisable**.
+
+- **Étape 1 — Auth** : récupération de mot de passe (jeton JWT/email, sans table) + écrans forgot/reset, message login orienté action pour les comptes Google. Apple Sign-In reporté (infra Apple requise).
+- **Étape 2 — Design system appliqué** : échelle `--space-1…8`, alias `--accent*`, bouton canonique `.btn`, normalisation transversale (rayon cartes `--r-lg`, focus champs) — aligner sans renommer.
+- **Étape 3 — États chargement/vide/erreur** : `apiFetch`, `showErrorModal` réutilisable (réseau/introuvable/serveur) + **bandeau « Connexion perdue »** global.
+- **Étape 4 — Uniformisation** : audit desktop+mobile (aucun débordement à 375px), rythme d'en-tête tokenisé, politiques icônes/responsive formalisées.
+- **Étape 5 — Notifications + Recherche universelle** : centre de notifs élevé (tous types + **RDV à venir** réels) ; ⌘K universel (Patients + Documents tous types + Rendez-vous).
+- **Étape 6 — Portail patient** : 8 sections (Accueil, Rendez-vous réel, Prendre RDV placeholder, Ordonnances/Résultats, Documents, Messagerie lecture seule, Profil) ; endpoints patient lecture seule ; correctif sidebar mobile.
+- **Étape 7 — Accessibilité + perf** : `aria-live`, `role=dialog/alertdialog` + `aria-modal`, `aria-label` recherche ; appels clés via `apiFetch`.
+- **Étape 8 — Dashboard** : conservé « Aurora » (déjà au niveau visé) ; clôture du sprint.
+
+> Reporté honnêtement (hors périmètre d'une passe qualité) : Apple Sign-In, prise de RDV en ligne, externalisation des logos base64, extraction du monofichier — au [14_BACKLOG.md](14_BACKLOG.md).
+
+---
+
 ## [Non publié] — Sprint 8 · Clinical Workspace — Lot 1 : module Ordonnance — 2026-07-20
 
 L'ordonnance cesse d'être un document généré : c'est un **vrai module**, déployé (Render + Vercel).
