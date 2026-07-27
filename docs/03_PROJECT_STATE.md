@@ -2,8 +2,8 @@
 
 > **État vivant du projet.** À mettre à jour à la fin de chaque session de travail significative. C'est le fichier qu'on lit pour savoir « où on en est ».
 
-**Version produit :** V1 (qualité commercialisable atteinte — Sprint 9)
-**Dernière consolidation :** 2026-07-20 (Sprint 9 — stabilisation / premium UX)
+**Version produit :** V1 (qualité commercialisable atteinte — Sprint 9 ; UX dossier patient refondue — Sprint 10)
+**Dernière consolidation :** 2026-07-27 (Sprint 10 — Patient Workspace Redesign)
 
 ---
 
@@ -56,6 +56,8 @@
 - 🔄 **Sprint 3 — Ambient AI Consultation** : **3.1 livré** (panneau « Consultation prête » : ordonnance/courrier en un clic, suites, constantes). **3.2 livré** (carte « Évolution des constantes » dans le Cockpit : sparklines tension/poids/pouls/temp/SpO₂ lues sur les consultations, 100 % déterministe — clôt le point 4 du Cockpit). Restant : tâches de suivi persistantes, polish enregistrement vocal.
 - 🔄 **Sprint 4 — Signaux & alertes proactifs** (pilier « détecter ») : **4.1 livré** — moteur de détection déterministe (`computePatientSignals`), carte « Signaux détectés » en tête du Cockpit + panneau « Signaux cliniques » transversal sur le dashboard. 100 % déterministe (aucune IA, observations factuelles « à vérifier »). Restant : interactions sur tout le dossier, tendances de constantes, seuils réglables.
 - ⏭️ Différenciation patient · signaux avancés. → [11_ROADMAP.md](11_ROADMAP.md).
+
+**⭐ En production (2026-07-27)** — **Sprint 10 · Patient Workspace Redesign** déployé (Vercel ; backend Render inchangé). Le dossier patient (app médecin) devient un workspace type Apple lisible en < 10 s : header premium + badge état santé, **3 blocs IA distincts** (Résumé / Points critiques / Actions — fin des doublons), **timeline premium** remontée en cœur de dossier avec aperçu au survol, **mini-dashboard santé** (tuiles Tension/Poids/FC/SpO₂/IMC façon Apple Health), et **sélecteur de connexion médecin/patient** sur la landing. 100 % réutilisation des données, aucune donnée inventée. → [CHANGELOG.md](CHANGELOG.md), [13_COMPONENTS.md](13_COMPONENTS.md).
 
 **⭐ En production (2026-07-20)** — la série de sprints suivante est **déployée** (Render + Vercel) :
 - **Porte d'entrée** : `index.html` = landing officielle (`/`) ; `app.html` = app médecin (`/app`, connexion directe, Google fiabilisé) ; `patient.html` (`/patient`). L'ancien marketing intégré à l'app est retiré ; déconnexion → `/`.

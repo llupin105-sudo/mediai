@@ -86,6 +86,10 @@ Remplace l'orchestration du dashboard. Barre de briefing + sélecteur de modes +
 | Timeline | `renderTimeline`, `renderTimelineFilters`, `#chartSection` connexes |
 | Détails d'événement (modal) | `renderConsultationDetailHtml`, `renderOrdonnanceDetailHtml`, `renderCourrierDetailHtml`, `renderLabDetailHtml`, `renderImagingDetailHtml` |
 | Graphique | `renderChart`, `.chart-panel`, `.chart-section` |
+| **Header premium** (Sprint 10a) | `renderPatientHeader`, `ensurePwStyles`, `#patientHeaderNew`, classes `.pwh-*`/`.pw-menu*` — bandeau pleine largeur : avatar, nom, badge état santé, sous-ligne, actions groupées `＋ Nouveau ▾` / Accès patient / Partager / `•••`. Helpers `pwToggleMenu`/`pwCloseMenus`/`pwNew`/`pwShare` |
+| **3 blocs IA** (Sprint 10b) | `renderPatientAI`, `#patientAI`, classes `.pai-*` — Résumé (récit snapshot « à vérifier ») / Points critiques (vigilance + `computePatientSignals` dédupliqués) / Actions proposées. **Supersède** cockpit + snapshot card + récit timeline + rail insights (masqués via `ensurePwStyles`) |
+| **Timeline premium** (Sprint 10c) | `renderTimeline` + aperçu au survol `tlHoverShow`/`tlHoverMove`/`tlHoverHide`, `tlEventById`, `.tl-hovercard`/`.tlh-*` — chronologie remontée en cœur de dossier, popover flottant au survol, clic → ouverture directe |
+| **Mini-dashboard santé** (Sprint 10d) | `renderPatientHealth`, `ensureHealthStyles`, `phTile`/`phSpark`, `#patientHealth`, classes `.ph-*` — tuiles compactes façon Apple Health (Tension, Poids, FC, SpO₂, IMC). IMC calculé si poids **et** taille. Réutilise l'extraction de constantes de `renderVitalsEvolutionHtml` |
 
 ### Documents & IA
 | Composant | Classes / fonctions |
@@ -114,6 +118,7 @@ Composants **mobile-first**, volontairement plus simples et chaleureux.
 
 | Composant | Fonctions |
 |---|---|
+| Sélecteur d'entrée (landing, Sprint 10e) | dans `index.html` : `#loginChoice`, classes `.lc-*`, `openLoginChoice`/`closeLoginChoice` — « Se connecter » ouvre le choix Professionnel de santé (`/app?mode=login`) / Patient (`/patient`), sans exposer d'URL technique |
 | Écran de connexion | `submitPatientLogin`, `#loginScreen` |
 | Accueil | `renderPatientHome`, `#pGreeting` |
 | Traitements en cours | `renderPatientTreatments`, `#pTreatments` |

@@ -4,6 +4,21 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 10 · Patient Workspace Redesign — 2026-07-27
+
+Refonte UX du dossier patient (app médecin) en workspace type Apple, lisible en moins de 10 s. Procédé par étapes validées + déployées une à une (Render inchangé, Vercel), sans casser l'existant. **100 % réutilisation des données existantes — aucune donnée patient inventée.**
+
+- **10a — Header premium** : bandeau pleine largeur (avatar, nom, **badge état santé** Vigilance élevée / À surveiller / Rien à signaler, sous-ligne âge · médecin référent · traitements actifs · dernier RDV) + actions groupées à droite : **＋ Nouveau ▾** (Consultation / Ordonnance / Analyse / Document / Imagerie / Courrier), Accès patient, Partager, **•••** (Épingler, Notes). Supprime l'ancienne grille de 7 boutons dispersés + le hero dupliqué du cockpit.
+- **10b — L'IA ne se répète plus** : 3 blocs distincts en tête — **Résumé** (récit du snapshot, marqué « ✦ IA · à vérifier »), **Points critiques** (vigilance + `computePatientSignals`, dédupliqués), **Actions proposées** (suivi + actions dérivées, boutons directs). Masque les surfaces qui doublonnaient (cockpit, carte snapshot, récit timeline, rail insights).
+- **10c — Timeline Premium** : la chronologie remonte juste sous les blocs IA (cœur du dossier) ; **aperçu au survol** (popover flottant : type + date + titre + résumé + « Cliquer pour ouvrir → », suit le curseur, se cache au scroll, ne bloque pas le clic). Couleurs par type, filtres + compteurs, recherche intelligente et clic → ouverture directe : conservés.
+- **10d — Mini-dashboard santé** : rangée de tuiles compactes façon Apple Health (Tension, Poids, FC, SpO₂, **IMC**) entre les blocs IA et la timeline — dernière valeur + micro-courbe dégradée + tendance neutre. 100 % déterministe (mêmes constantes que l'évolution). **IMC calculé uniquement si poids ET taille présents**, sinon « — · Taille non renseignée ».
+- **10e — Sélecteur de connexion** (`index.html`) : « Se connecter » ouvre un choix **Professionnel de santé** (`/app?mode=login`) / **Patient** (`/patient`) — le patient ne voit aucune URL technique. Fermeture ×/backdrop/Escape, responsive, repli `href` sans JS.
+- **10f — Nettoyage** : retrait du bouton secondaire « Résumé intelligent » (doublon du bloc Résumé) ; Notes générales + Documents importants repoussés en bas (secondaires). Docs mises à jour.
+
+> Note dette : le mini-dashboard santé (glance) et la vue « Évolution des constantes » (détail) coexistent volontairement (complémentaires, non doublons). Voir [14_BACKLOG.md](14_BACKLOG.md).
+
+---
+
 ## [Non publié] — Sprint 9 · Stabilisation / Premium UX / V1 — 2026-07-20
 
 Sprint entièrement dédié à la qualité (procédé par étapes validées, sans casser l'existant). MediAI atteint le niveau d'une **V1 commercialisable**.
