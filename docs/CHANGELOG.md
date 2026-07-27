@@ -4,6 +4,20 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 11 · The Apple Experience — 2026-07-27
+
+Élévation premium (Apple/Linear) : supprimer, hiérarchiser, respirer. Procédé par étapes validées + déployées une à une, sans casser l'existant. **Stack réelle assumée** : frontend HTML/CSS/JS vanilla (pas React/Next), backend Node/Express + PostgreSQL sur Render (pas Supabase) — l'Étape 10 « perf » vise donc le *ressenti instantané* (skeletons, rendu paresseux, cache), pas des Server Components.
+
+- **Étape 1 — Dashboard médecin** : hero léger sur fond papier (accueil + une seule priorité IA « à vérifier » + 2 actions) remplaçant le bandeau navy massif ; 5 modules aérés en 2 colonnes — Agenda du jour · **Dernières consultations** (nouveau) · Patients à voir · Alertes · **Raccourcis** (nouveau). Branché sur `/api/cockpit` + `fetchAllEvents`, aucune donnée inventée.
+- **Étape 5 — Navigation** : sidebar réduite de **11 à 6 entrées**. Les 5 sous-onglets Documents (Comptes-rendus, Ordonnances, Courriers, Analyses, Imagerie) deviennent des filtres du hub Documents ; les appels historiques redirigés via `DOC_VIEW_ALIAS`.
+- **Étape 8 — Design System v2** : échelle typographique en tokens (`--fs-2xs`→`--fs-2xl`), `--r-xl`, composants canoniques **`.badge`** (+ tons) et **`.input`/`.field`** (comme `.btn`). Adoption progressive (dashboard déjà migré). → [04_DESIGN_SYSTEM.md](04_DESIGN_SYSTEM.md).
+- **Étape 9 — Micro-interactions** : entrée unifiée des modales `.modal-overlay` (fondu du fond + pop de la boîte), feedback de pression `.btn-export` — le tout gated `prefers-reduced-motion`. L'existant (skeletons, stagger, toasts, ⌘K) conservé.
+- **Étape 11 — Nettoyage** : suppression du code mort (`renderIntelligentHome`, `computeDayFacts`, `renderDashboardSignals`, `ensureSignalStyles`, vues `doc-*` orphelines + `renderDocView`/`DOC_TYPES`, `generateDossierSummary`/`applyTimelineAnnotations` + carte de résumé, styles legacy `dash-stats`/`dash-today`/`dash-section-title`/`dash-recent-grid`, `.dsh-pill`). `app.html` : ~7050 → 6938 lignes, aucune régression (smoke test dashboard + hub + dossier).
+
+> Restant du Sprint 11 : Étape 4 (cap IA strict ≤ 6 lignes), Étape 6 (écran de connexion unique + bouton Apple — le câblage Apple attend les identifiants Apple Developer), Étape 7 (partage patient temps réel). Étape 10 perf assumée au niveau de la stack (voir plus haut).
+
+---
+
 ## [Non publié] — Sprint 10 · Patient Workspace Redesign — 2026-07-27
 
 Refonte UX du dossier patient (app médecin) en workspace type Apple, lisible en moins de 10 s. Procédé par étapes validées + déployées une à une (Render inchangé, Vercel), sans casser l'existant. **100 % réutilisation des données existantes — aucune donnée patient inventée.**
