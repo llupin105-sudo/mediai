@@ -59,6 +59,21 @@ Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Line
 - Identité **100 % sans-serif** : `--serif` et `--mono` pointent volontairement vers Inter (plus d'italique éditorial, plus de monospace). Les « labels » se différencient par la **casse majuscule + letter-spacing**, pas par une autre fonte.
 - Corps de texte : `line-height ≈ 1.55`, `-webkit-font-smoothing: antialiased`.
 
+**Échelle typographique tokenisée (Design System v2 — Sprint 11)** — source unique pour les tailles de texte, adoption progressive :
+
+| Token | Valeur | Usage |
+|---|---|---|
+| `--fs-2xs` | 10.5px | micro-labels, compteurs |
+| `--fs-xs` | 12px | légendes, méta |
+| `--fs-sm` | 13px | texte secondaire |
+| `--fs-base` | 14px | corps par défaut |
+| `--fs-md` | 15.5px | corps important, sous-titres |
+| `--fs-lg` | 18px | titres de section |
+| `--fs-xl` | 23px | titres de page |
+| `--fs-2xl` | 30px | hero |
+
+Poids : `--fw-medium` 500, `--fw-semibold` 600, `--fw-bold` 700.
+
 ---
 
 ## 3. Espacements
@@ -86,8 +101,9 @@ Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Line
 |---|---|
 | `--r-xs` | `4px` |
 | `--r-sm` | `8px` |
-| `--r-md` | `12px` (rayon des boutons) |
-| `--r-lg` | `18px` |
+| `--r-md` | `12px` (rayon des boutons, inputs) |
+| `--r-lg` | `18px` (cartes) |
+| `--r-xl` | `24px` (grandes surfaces, modales) — *ajouté v2* |
 | `--r-full` | `9999px` (pastilles, avatars) |
 
 ---
@@ -112,6 +128,10 @@ Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Line
 | `--btn-transition` | `background .16s, border-color .16s, color .16s, transform .1s, box-shadow .16s` |
 
 **Bouton canonique (Sprint 9)** — composant réutilisable `.btn` + variantes `.btn-primary` / `.btn-ghost` / `.btn-danger` / `.btn-sm` (hauteur `--btn-h`, rayon `--btn-radius`, transition `--btn-transition`, press + focus). À utiliser pour tout nouveau bouton ; les classes historiques (`.btn-export`, `.ord-btn`, `.abar-b`, `.dc-tab`…) sont conservées et alignées sur les mêmes tokens (rayon des cartes unifié à `--r-lg`, focus des champs unifié via `--accent`).
+
+**Badge canonique (Design System v2 — Sprint 11)** — `.badge` + tons `.badge--blue` / `.badge--ia` / `.badge--green` / `.badge--amber` / `.badge--rose` (pilule `--r-full`, `--fs-2xs`, gras). Remplace progressivement les pastilles ad-hoc (`.dsh-pill`, `.aur-ia-tag`, `.tl-badge`, `.pwh-badge`…). Déjà adopté par le dashboard.
+
+**Input / champ canonique (Design System v2 — Sprint 11)** — `.input` (hauteur `--input-h` = `--btn-h`, rayon `--r-md`, focus `--accent` + halo `--accent-tint`) et wrapper `.field` (label + champ, `gap` 6px). `textarea.input` pour les zones multi-lignes. À utiliser pour tout nouveau formulaire.
 
 ---
 
