@@ -90,6 +90,7 @@ Remplace l'orchestration du dashboard. Barre de briefing + sélecteur de modes +
 | **3 blocs IA** (Sprint 10b) | `renderPatientAI`, `#patientAI`, classes `.pai-*` — Résumé (récit snapshot « à vérifier ») / Points critiques (vigilance + `computePatientSignals` dédupliqués) / Actions proposées. **Supersède** cockpit + snapshot card + récit timeline + rail insights (masqués via `ensurePwStyles`) |
 | **Timeline premium** (Sprint 10c) | `renderTimeline` + aperçu au survol `tlHoverShow`/`tlHoverMove`/`tlHoverHide`, `tlEventById`, `.tl-hovercard`/`.tlh-*` — chronologie remontée en cœur de dossier, popover flottant au survol, clic → ouverture directe |
 | **Mini-dashboard santé** (Sprint 10d) | `renderPatientHealth`, `ensureHealthStyles`, `phTile`/`phSpark`, `#patientHealth`, classes `.ph-*` — tuiles compactes façon Apple Health (Tension, Poids, FC, SpO₂, IMC). IMC calculé si poids **et** taille. Réutilise l'extraction de constantes de `renderVitalsEvolutionHtml` |
+| **Copilote — Discuter avec le dossier** (Sprint 12) | bouton header **✦ Discuter** (`openCopilote`), panneau latéral `#copilotePanel` + `#copiloteScrim`, classes `.cop-*` — IA conversationnelle : questions suggérées, fil (question médecin / réponse IA « à vérifier »), saisie multi-ligne, indicateur de frappe. `copiloteSend` → `POST /api/patients/:id/chat`. Conversation en mémoire de session, isolée par patient (`copilotePatientId`), non persistée. `copFormat` pour le rendu à puces |
 
 ### Documents & IA
 | Composant | Classes / fonctions |

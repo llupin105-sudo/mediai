@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 12 · Intelligence First — 2026-07-28
+
+MediAI devient un **copilote clinique** : l'information vient au médecin. Sprint par étapes validées ; plusieurs items élèvent l'existant (⌘K, centre de notifications, Mode Focus, récit clinique), d'autres sont vraiment nouveaux.
+
+- **Étape 4 — IA Conversationnelle « Discuter avec le dossier »** ⭐ : panneau latéral « Copilote » dans le dossier (bouton header **✦ Discuter**). Le médecin pose des questions, l'IA répond **uniquement à partir des données du dossier**. Backend `POST /api/patients/:id/chat` (`requireAuth` + `aiLimiter` + `enforceAiQuota`) : le message complet (contexte du dossier + historique + question) est **anonymisé d'un bloc** (`anonymize` + `buildKnownTerms` → aucun nom patient en clair vers Claude) → `callClaude` avec `DOSSIER_CHAT_PROMPT` (jamais d'invention, « le dossier ne le précise pas » si absent, non décisionnel, ≤ 6 lignes) → **ré-identification** (`deanonymize`). Chaque réponse porte **« ✦ IA · à vérifier · établi à partir des seules données du dossier »**. **Conversation non persistée** (aucune donnée patient stockée — règle HDS), isolée par patient. Quota IA partagé.
+
+> En cours du Sprint 12. Prochaines étapes candidates : Home briefing (1), Smart Search inter-patients (3), timeline clinique partageable (12), et l'élévation de l'existant (⌘K actions, notifications, Mode Consultation). Étapes contraintes signalées honnêtement (médicaments : photo/observance/pharmacie sans source de données ; patient 2.0 : observance/questionnaire).
+
+---
+
 ## [Non publié] — Sprint 11 · The Apple Experience — 2026-07-27
 
 Élévation premium (Apple/Linear) : supprimer, hiérarchiser, respirer. Procédé par étapes validées + déployées une à une, sans casser l'existant. **Stack réelle assumée** : frontend HTML/CSS/JS vanilla (pas React/Next), backend Node/Express + PostgreSQL sur Render (pas Supabase) — l'Étape 10 « perf » vise donc le *ressenti instantané* (skeletons, rendu paresseux, cache), pas des Server Components.
