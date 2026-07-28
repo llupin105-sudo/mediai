@@ -26,7 +26,7 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT } = require('./prompts');
 const db = require('./db');
 
 // ── Moteur métier du Cockpit (Sprint 6) — fonctions pures déterministes ──
@@ -1174,6 +1174,41 @@ app.get('/api/patients/:id/search', aiLimiter, requireAuth, enforceAiQuota, asyn
   } catch (err) {
     console.error('[ERROR search]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la recherche' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/search/interpret   (Sprint 12 — Smart Search inter-patients)
+// Traduit une requête clinique en critères structurés. NE REÇOIT QUE la
+// requête (aucune donnée patient) ; le filtrage se fait ensuite en local,
+// de façon déterministe, côté client sur le cache d'événements.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/search/interpret', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
+  const query = (req.body && req.body.query || '').trim();
+  if (!query || query.length < 3) {
+    return res.status(400).json({ error: 'Requête trop courte' });
+  }
+  if (query.length > 200) {
+    return res.status(400).json({ error: 'Requête trop longue' });
+  }
+  try {
+    const { json } = await callClaude({
+      system: SEARCH_INTERPRET_PROMPT.system,
+      user: SEARCH_INTERPRET_PROMPT.user(query),
+      maxTokens: 400,
+    });
+    const KNOWN_TYPES = ['consultation', 'ordonnance', 'courrier', 'analyse_labo', 'imagerie'];
+    const criteres = {
+      termes: Array.isArray(json.termes) ? json.termes.filter((t) => typeof t === 'string' && t.trim()).slice(0, 12) : [],
+      types: Array.isArray(json.types) ? json.types.filter((t) => KNOWN_TYPES.includes(t)) : [],
+      mois: Number.isInteger(json.mois) && json.mois >= 1 && json.mois <= 12 ? json.mois : null,
+      annee: Number.isInteger(json.annee) && json.annee >= 2000 && json.annee <= 2100 ? json.annee : null,
+    };
+    await consumeAiCredit(req.medecin);
+    return res.json({ success: true, criteres });
+  } catch (err) {
+    console.error('[ERROR search interpret]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de l'interprétation de la recherche" });
   }
 });
 

@@ -309,6 +309,30 @@ Retourne un JSON avec les événements pertinents, classés par pertinence :
 };
 
 /**
+ * Sprint 12 — Smart Search inter-patients. Traduit une requête clinique en
+ * langage naturel en CRITÈRES de recherche structurés. Ne reçoit QUE la
+ * requête du médecin (aucune donnée patient) ; le filtrage se fait ensuite
+ * en local, de façon déterministe, sur le cache d'événements du client.
+ */
+const SEARCH_INTERPRET_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu traduis une requête de recherche d'un médecin en critères structurés pour filtrer des dossiers patients. Tu ne reçois QUE la requête (aucune donnée patient).
+
+Règles :
+- Génère une liste de **termes de recherche** cliniquement pertinents : le mot de la requête ET ses synonymes/associés usuels (pathologies proches, paramètres biologiques, classes de médicaments, examens). Exemple : « diabétiques » → diabète, diabétique, HbA1c, glycémie, metformine, insuline.
+- Si la requête cible un **type de document**, remplis \`types\` avec un sous-ensemble de : consultation, ordonnance, courrier, analyse_labo, imagerie. Sinon liste vide.
+- Si la requête mentionne une **période** (mois et/ou année), remplis \`mois\` (1-12) et/ou \`annee\`. Sinon null.
+- N'invente pas de terme sans rapport. Reste sobre (5 à 12 termes maximum).
+
+Réponds STRICTEMENT en JSON : { "termes": ["..."], "types": ["..."], "mois": null, "annee": null }`,
+
+  user: (query) => `Requête du médecin : "${query}"
+
+Retourne les critères en JSON : { "termes": [...], "types": [...], "mois": null, "annee": null }`
+};
+
+/**
  * Sprint 12 — « Discuter avec le dossier » (IA conversationnelle).
  * Le médecin pose une question ; l'IA répond STRICTEMENT à partir du
  * contexte du dossier fourni. Jamais d'invention, jamais d'avis médical
@@ -681,4 +705,4 @@ Produis l'évolution par thèmes en JSON strict :
 Entre 1 et 5 thèmes selon la richesse du dossier. Si le dossier est trop court, renvoie un seul thème « Suivi général » en "stabilite".`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT };
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT };
