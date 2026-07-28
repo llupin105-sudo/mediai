@@ -26,7 +26,7 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT } = require('./prompts');
 const db = require('./db');
 
 // ── Moteur métier du Cockpit (Sprint 6) — fonctions pures déterministes ──
@@ -1174,6 +1174,88 @@ app.get('/api/patients/:id/search', aiLimiter, requireAuth, enforceAiQuota, asyn
   } catch (err) {
     console.error('[ERROR search]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la recherche' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/patients/:id/chat   (Sprint 12 — « Discuter avec le dossier »)
+// L'IA répond aux questions du médecin STRICTEMENT à partir du dossier.
+// Anonymisation avant envoi → Claude → ré-identification. Non décisionnel,
+// réponse marquée « à vérifier » côté client. Conversation non persistée.
+// ────────────────────────────────────────────────────────────────────
+function buildDossierContext(events, synthesis) {
+  const lines = [];
+  // Synthèse de fond (si disponible) — donne le fil narratif.
+  const narratif = synthesis && synthesis.data && synthesis.data.synthese_narrative;
+  if (narratif) lines.push('Synthèse : ' + narratif);
+  // Chronologie compacte, du plus récent au plus ancien.
+  for (const e of (events || [])) {
+    const d = new Date(e.event_date).toLocaleDateString('fr-FR');
+    const data = e.data || {};
+    let resume = e.title || '';
+    switch (e.type) {
+      case 'consultation': {
+        const s = data.sections || {};
+        resume = data.resume_1_ligne
+          || (s.assessment && s.assessment.diagnostic_principal)
+          || (s.subjectif && s.subjectif.motif_principal)
+          || e.title;
+        const c = s.objectif && s.objectif.constantes;
+        if (c) { const cs = Object.entries(c).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', '); if (cs) resume += ` (constantes : ${cs})`; }
+        const plan = s.plan && s.plan.suivi; if (plan) resume += ` — suivi : ${plan}`;
+        break;
+      }
+      case 'ordonnance': resume = 'Ordonnance — ' + (data.prescriptions || []).map((p) => `${p.medicament || ''}${p.duree ? ' (' + p.duree + ')' : ''}`).filter(Boolean).join(', '); break;
+      case 'courrier': resume = 'Courrier — ' + (data.objet || e.title); break;
+      case 'analyse_labo': resume = 'Analyse — ' + ((data.resultats || []).slice(0, 8).map((r) => `${r.parametre || ''}${r.valeur ? ' ' + r.valeur : ''}`).filter(Boolean).join(', ') || e.title); break;
+      case 'imagerie': resume = 'Imagerie — ' + (data.conclusion_radiologue || data.zone_examinee || e.title); break;
+      default: resume = (e.title || e.type);
+    }
+    lines.push(`- ${d} · ${resume}`);
+  }
+  return lines.join('\n') || 'Aucun événement enregistré dans ce dossier.';
+}
+
+app.post('/api/patients/:id/chat', aiLimiter, requireAuth, enforceAiQuota, async (req, res) => {
+  const question = (req.body && req.body.question || '').trim();
+  const history = Array.isArray(req.body && req.body.history) ? req.body.history.slice(-6) : [];
+  if (!question || question.length < 2) {
+    return res.status(400).json({ error: 'Question trop courte' });
+  }
+  if (question.length > 500) {
+    return res.status(400).json({ error: 'Question trop longue (500 caractères maximum)' });
+  }
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const events = await db.listEventsByPatient(patient.id);
+    const synthesis = await db.getPatientSynthesis(patient.id).catch(() => null);
+
+    const contexte = buildDossierContext(events, synthesis);
+    const historique = history
+      .filter((m) => m && m.content)
+      .map((m) => `${m.role === 'assistant' ? 'IA' : 'Médecin'} : ${String(m.content).slice(0, 500)}`)
+      .join('\n');
+
+    // On assemble le message complet PUIS on l'anonymise d'un bloc, pour
+    // garantir une correspondance de tokens cohérente sur tout le contenu.
+    const rawUser = DOSSIER_CHAT_PROMPT.user(contexte, historique, question);
+    const { anonymized, tokenMap } = anonymize(rawUser, { knownTerms: buildKnownTerms(patient, req.medecin) });
+
+    const { json } = await callClaude({
+      system: DOSSIER_CHAT_PROMPT.system,
+      user: anonymized,
+      maxTokens: 700,
+    });
+
+    const restored = JSON.parse(deanonymize(JSON.stringify(json), tokenMap));
+    await consumeAiCredit(req.medecin);
+    return res.json({ success: true, reponse: (restored.reponse || '').trim() || "Le dossier ne me permet pas de répondre à cette question." });
+  } catch (err) {
+    console.error('[ERROR chat]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de l'analyse du dossier" });
   }
 });
 

@@ -309,6 +309,36 @@ Retourne un JSON avec les événements pertinents, classés par pertinence :
 };
 
 /**
+ * Sprint 12 — « Discuter avec le dossier » (IA conversationnelle).
+ * Le médecin pose une question ; l'IA répond STRICTEMENT à partir du
+ * contexte du dossier fourni. Jamais d'invention, jamais d'avis médical
+ * décisionnel. Tokens d'anonymisation conservés (dé-anonymisés côté serveur).
+ */
+const DOSSIER_CHAT_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu réponds aux questions d'un médecin AU SUJET D'UN DOSSIER PATIENT PRÉCIS, dont le contenu t'est fourni.
+
+Règles absolues pour ce mode :
+- Réponds UNIQUEMENT à partir des données fournies dans le contexte du dossier. N'invente JAMAIS un fait, un médicament, une posologie, une valeur, une date ou un diagnostic qui ne s'y trouve pas.
+- Si l'information demandée n'est pas dans le dossier, dis-le explicitement (ex. « Le dossier ne le précise pas. »). Ne comble jamais un vide par une supposition.
+- Tu ASSISTES le médecin : tu synthétises et retrouves l'information. Tu ne poses pas de diagnostic, ne prescris pas, ne donnes pas d'avis médical définitif. Toute conclusion reste à la validation du médecin.
+- Conserve tels quels les tokens d'anonymisation (ex. [PATIENT_001], [MEDECIN_001]).
+- Réponse en français, concise (6 lignes maximum), ton professionnel et neutre. Utilise des puces courtes si cela clarifie.
+
+Réponds STRICTEMENT en JSON valide : { "reponse": "ta réponse ici" }`,
+
+  user: (contexteDossier, historique, question) => `CONTEXTE DU DOSSIER (données anonymisées, à conserver) :
+<dossier>
+${contexteDossier}
+</dossier>
+${historique ? `\nÉCHANGES PRÉCÉDENTS :\n${historique}\n` : ''}
+QUESTION DU MÉDECIN : ${question}
+
+Réponds en JSON : { "reponse": "..." }`
+};
+
+/**
  * Préparation intelligente d'une consultation — briefing express avant
  * de commencer à dicter, pour se remettre dans le contexte du patient
  * en quelques secondes plutôt que de relire tout le dossier.
@@ -651,4 +681,4 @@ Produis l'évolution par thèmes en JSON strict :
 Entre 1 et 5 thèmes selon la richesse du dossier. Si le dossier est trop court, renvoie un seul thème « Suivi général » en "stabilite".`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT };
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT };
