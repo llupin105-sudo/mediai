@@ -2,8 +2,8 @@
 
 > **État vivant du projet.** À mettre à jour à la fin de chaque session de travail significative. C'est le fichier qu'on lit pour savoir « où on en est ».
 
-**Version produit :** V1 (qualité commercialisable atteinte — Sprint 9 ; UX dossier patient refondue — Sprint 10)
-**Dernière consolidation :** 2026-07-27 (Sprint 10 — Patient Workspace Redesign)
+**Version produit :** V1 (qualité commercialisable — Sprint 9 ; UX refondue — Sprints 10-11 ; copilote clinique — Sprint 12)
+**Dernière consolidation :** 2026-07-28 (Sprint 12 — Intelligence First, complet)
 
 ---
 
@@ -56,6 +56,8 @@
 - 🔄 **Sprint 3 — Ambient AI Consultation** : **3.1 livré** (panneau « Consultation prête » : ordonnance/courrier en un clic, suites, constantes). **3.2 livré** (carte « Évolution des constantes » dans le Cockpit : sparklines tension/poids/pouls/temp/SpO₂ lues sur les consultations, 100 % déterministe — clôt le point 4 du Cockpit). Restant : tâches de suivi persistantes, polish enregistrement vocal.
 - 🔄 **Sprint 4 — Signaux & alertes proactifs** (pilier « détecter ») : **4.1 livré** — moteur de détection déterministe (`computePatientSignals`), carte « Signaux détectés » en tête du Cockpit + panneau « Signaux cliniques » transversal sur le dashboard. 100 % déterministe (aucune IA, observations factuelles « à vérifier »). Restant : interactions sur tout le dossier, tendances de constantes, seuils réglables.
 - ⏭️ Différenciation patient · signaux avancés. → [11_ROADMAP.md](11_ROADMAP.md).
+
+**⭐ En production (2026-07-28)** — **Sprint 12 · Intelligence First** (complet, 12/12) : MediAI devient un **copilote clinique**. Home briefing quotidien ; ⌘K enrichie (recherche + **Smart Search clinique inter-patients** + actions) ; **Copilote « Discuter avec le dossier »** (IA conversationnelle, réponses uniquement depuis le dossier, anonymisée, non persistée) ; **Histoire clinique** partageable dans un courrier ; centre de notifications = centre d'actions groupées ; dossier vivant (badges timeline « À revoir »/« À renouveler ») ; Mode Consultation plein écran (contexte permanent) ; timeline dépliable au clic ; portail patient proactif ; vue Traitements + interactions ; détails premium. Nouveaux endpoints IA : `POST /api/patients/:id/chat`, `POST /api/search/interpret`. → [CHANGELOG.md](CHANGELOG.md), [08_AI_SYSTEM.md](08_AI_SYSTEM.md).
 
 **⭐ En production (2026-07-27)** — **Sprint 11 · The Apple Experience** (complet) : dashboard médecin premium (hero léger + 5 modules), cap IA strict (≤ 6 lignes), navigation réduite (sidebar 11→6, sous-docs en filtres du hub), écran de connexion unique (front door Professionnel/Patient) + bouton Apple honnête « bientôt », Design System v2 (échelle typo + `.badge`/`.input` canoniques), micro-interactions (entrée unifiée des modales), liaison patient ⇄ médecin quasi temps réel (polling portail), nettoyage du code mort (~110 lignes). Seule dépendance restante : activation réelle d'Apple (identifiants Apple Developer). → [CHANGELOG.md](CHANGELOG.md).
 
