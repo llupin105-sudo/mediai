@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 14 · The First Impression — 2026-07-30
+
+Refonte **complète** de la page publique (`index.html`) pour créer une émotion (Apple / Linear / Arc / Nothing), sans casser l'architecture : tokens et palette officiels conservés, sélecteur de connexion Pro/Patient et redirection checkout préservés. Responsive desktop/tablette/mobile dès le départ, `prefers-reduced-motion` géré.
+
+- **① Hero** épuré « Moins d'administratif. Plus de médecine. » + **MacBook animé** (un dossier qui se construit, curseur, parallax léger).
+- **② Le temps retrouvé** : compteur animé au scroll 0 → 1 h 18 + chips (1/15/32 min).
+- **③ Une consultation, trois étapes** · **④ Timeline interactive** (Consultation→Analyse→Ordonnance→Patient→Pharmacie→Suivi) · **⑤ Pourquoi MediAI** (3 convictions) · **⑥ Fonctionnalités progressives** au scroll (mockups CSS) · **⑦ Témoignages** (placeholders « à venir », jamais de faux témoignage).
+- **⑧ Tarifs premium** (Pro agrandi + badge + hover) · **⑨ FAQ accordéon** · **⑩ Le futur** (6 features « En développement ») · **⑪ Footer 4 colonnes** + « Version 0.9.14 · Sprint 14 ».
+- **⑫ Micro-interactions** discrètes (reveal au scroll + **fallback anti-FOUC**, hover, parallax) · **⑬ Perf/SEO** (OpenGraph/Twitter, `display=swap`, **zéro image externe** — mockups en CSS).
+- **⑭ WOW « Essayer MediAI »** : démonstration **jouable** sur la page (Dicter → transcription animée → Générer → compte-rendu structuré « à vérifier »), **patient fictif**, sans compte ni vraie donnée.
+
+---
+
 ## [Non publié] — Sprint 13 · Platform Experience — 2026-07-29
 
 Expérience globale : page publique, point d'entrée unique, briefing + assistant, et pages plateforme préparant les prochains sprints. **Sprint complet.** Sans casser l'architecture ni la sidebar existante (au-delà des nouvelles entrées). Plusieurs points du cahier étaient **déjà livrés** (connexion Professionnel/Patient — Sprints 10e/11.6 ; briefing d'accueil — Sprint 12.1 ; carte patient proactive — Sprint 12.11 ; assistant dossier — Copilote Sprint 12.4). Note : pas de TypeScript dans MediAI (JS vanilla) ; « données simulées » réservées aux features **plateforme** (jamais des données patient inventées).
