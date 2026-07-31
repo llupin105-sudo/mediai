@@ -8,6 +8,7 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 Expérience globale : page publique, point d'entrée unique, briefing + assistant, et pages plateforme préparant les prochains sprints. Sans casser l'architecture ni la sidebar existante (au-delà des nouvelles entrées). Plusieurs points du cahier étaient **déjà livrés** (connexion Professionnel/Patient — Sprints 10e/11.6 ; briefing d'accueil — Sprint 12.1 ; carte patient proactive — Sprint 12.11 ; assistant dossier — Copilote Sprint 12.4). Note : pas de TypeScript dans MediAI (JS vanilla) ; « données simulées » réservées aux features **plateforme** (jamais des données patient inventées).
 
+- **⑥⑦⑧ Pages plateforme** (`app.html`) : 3 nouvelles entrées sidebar (section « Plateforme ») + vues. **⑥ Centre d'actions** (Sparkles) — catégories au même endroit : Résultats & examens, Renouvellements, Notifications IA (**données réelles** `/api/cockpit`, cliquables) + « Bientôt » honnête pour Ordonnances à signer / Patients à rappeler (pas de faux patient). **⑦ MediAI Labs** (Flask) — 6 expérimentations, toutes « Bientôt disponible ». **⑧ Marketplace** (Puzzle) — 7 intégrations futures « Bientôt disponible ». `renderActionsCenter`/`renderLabs`/`renderMarketplace`.
 - **① Section Tarifs** (landing `index.html`, `#pricing`) : 4 formules — Student (Gratuit), Start (39 €/mois), **Pro (99 €/mois, « Le plus populaire »)**, Enterprise (Sur devis). Après les fonctionnalités, avant le CTA/footer, cohérente avec le design system. Responsive 4/2/1.
 
 ---
