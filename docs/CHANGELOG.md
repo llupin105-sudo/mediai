@@ -4,6 +4,14 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 13 · Platform Experience — 2026-07-29
+
+Expérience globale : page publique, point d'entrée unique, briefing + assistant, et pages plateforme préparant les prochains sprints. Sans casser l'architecture ni la sidebar existante (au-delà des nouvelles entrées). Plusieurs points du cahier étaient **déjà livrés** (connexion Professionnel/Patient — Sprints 10e/11.6 ; briefing d'accueil — Sprint 12.1 ; carte patient proactive — Sprint 12.11 ; assistant dossier — Copilote Sprint 12.4). Note : pas de TypeScript dans MediAI (JS vanilla) ; « données simulées » réservées aux features **plateforme** (jamais des données patient inventées).
+
+- **① Section Tarifs** (landing `index.html`, `#pricing`) : 4 formules — Student (Gratuit), Start (39 €/mois), **Pro (99 €/mois, « Le plus populaire »)**, Enterprise (Sur devis). Après les fonctionnalités, avant le CTA/footer, cohérente avec le design system. Responsive 4/2/1.
+
+---
+
 ## [Non publié] — Sprint 12 · Intelligence First — 2026-07-28
 
 MediAI devient un **copilote clinique** : l'information vient au médecin. **Sprint complet (12/12 étapes)**, par étapes validées + déployées une à une ; plusieurs items élèvent l'existant (⌘K, centre de notifications, Mode Focus, récit clinique), d'autres sont vraiment nouveaux (Copilote conversationnel, Smart Search). Garde-fous IA tenus (anonymisation avant/ré-identification après, « à vérifier », rien d'inventé, rien stocké non-HDS) ; contraintes de données signalées honnêtement (médicaments : photo/observance/pharmacie ; patient : observance/questionnaire).
