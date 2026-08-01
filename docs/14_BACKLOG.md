@@ -33,6 +33,11 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 | 21 | 🟠 | `app.html` ~5700 lignes | Monofichier devenu très gros (cockpit, dossier, ordonnance…). Extraction en modules ES (sans build) à planifier. |
 | 22 | 🟢 | Signature d'ordonnance | Aujourd'hui = validation + verrouillage + horodatage (honnête). Signature électronique qualifiée (eIDAS/CPS) = chantier conformité, à cadrer avec HDS. |
 | 23 | 🟢 | Durées d'ordonnance à la saisie | L'éditeur capture `duree` (texte) ; capturer aussi `duree_jours`/`renouvellements` structurés fiabiliserait `computePrescriptionStatus`. |
+| 24 | 🟠 | Coût des IA patient (Sprint 15) | `GET /api/patient/parcours` (caché par nb d'événements) et `POST /api/patient/chat` (non caché) appellent Claude sans décompte de quota. Surveiller la consommation ; prévoir un plafond/limiteur côté patient si volume. → [08_AI_SYSTEM.md](08_AI_SYSTEM.md). |
+| 25 | 🟠 | Fonctions patient « Bientôt » à implémenter | Placeholders honnêtes posés au Sprint 15 : prise de RDV en ligne, messagerie patient→médecin (aujourd'hui lecture seule), partage de dossier / gestion des accès, santé connectée (Apple Santé/Google Fit/montre), journal de connexions. Chantiers backend à cadrer (dont HDS). |
+| 26 | 🟢 | Base médicament (notice/effets/photo) | Traitements patient affichent « notice à demander au pharmacien » faute de base médicament (Vidal/BDPM). Intégrer la BDPM ouvrirait notice, effets et visuels. |
+| 27 | 🟢 | Normes de référence labo manquantes | Résultats patient reportent `valeurs_reference` uniquement si le labo les fournit. Sans base de normes, pas d'aide à la lecture — à ne PAS inventer (règle d'or). |
+| 28 | 🟢 | `patient.html` monofichier (~1500 lignes) | A bien grossi au Sprint 15 (13 vues + IA). Extraction en modules ES (sans build) à envisager si la vélocité baisse. |
 
 ---
 
