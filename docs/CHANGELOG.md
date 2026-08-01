@@ -4,6 +4,25 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 16 · Project Renaissance — 2026-08-01
+
+Changement de posture : d'un excellent prototype vers un **produit** pensé pour durer (posture CTO). Audit chiffré + feuille de route en vagues dans [15_SPRINT16_RENAISSANCE.md](15_SPRINT16_RENAISSANCE.md). Ligne rouge : **transparence non négociable** (jamais « HDS conforme », jamais un chiffre inventé). *(Sprint en cours — Vagues 0 et 1 livrées.)*
+
+**Vague 0 — Design System v2 (fondation).**
+- **`mediai-site/tokens.css`** devient la **source unique** des design tokens (palette, typo, spacing, radius, élévation, motion, composants + `:focus-visible`/`prefers-reduced-motion` partagés). Chargée par les 3 frontends.
+- **Suppression du token legacy `--sage`** (195 occurrences → `--accent`). **`app.html`** consomme désormais entièrement `tokens.css` (`:root` local supprimé) ; correction au passage d'une circularité et du token **`--bg-secondary`** référencé mais jamais défini. Zéro régression visuelle (3 univers vérifiés).
+
+**Vague 1 — Maturité produit (honnête).**
+- **Trust Center** (`/trust`) : page publique investisseurs/CHU — hébergement, sécurité, chiffrement, RGPD, sauvegardes, disponibilité, incidents. Contenu **strictement honnête** (« HDS en cours », pas de SLA affiché, « aucun incident à ce jour »). Bâtie sur `tokens.css`.
+- **i18n** (`i18n.js`) : mécanisme léger sans build (`data-i18n`, langue persistée, repli fr) ; **FR/EN** traduits sur le Trust Center (preuve), es/it en repli honnête.
+- **Feature flags** (activation **sans redéploiement**) : table `feature_flags` (surcharges admin), `GET /api/flags` (public) + `PUT /api/admin/flags/:key` (admin), notion d'admin minimale et auditable (`ADMIN_EMAILS`, `isAdmin`, `requireAdmin`), helper client `flags.js`.
+- **⭐ Command Center** (`/admin`, shell) : cockpit admin (portail réel via jeton médecin + `isAdmin`). Santé du système (ping réel), **UI de bascule des flags en direct**, **feuille de route** (badges), métriques produit « À instrumenter » (Vague 2 — jamais de faux chiffre).
+- **Décision CTO** : runtime de plugins/Marketplace, observabilité et analytics restent au stade **ADR/hooks** (pas d'infra spéculative ni de faux dashboards) — validé.
+
+> ⚙️ **Action requise (config)** : définir `ADMIN_EMAILS` (emails séparés par des virgules) dans l'environnement du backend Render pour ouvrir l'accès au Command Center.
+
+---
+
 ## [Non publié] — Sprint 15 · Patient Experience Revolution — 2026-08-01
 
 Transformation de l'espace patient (`patient.html`) : de « portail » vers une **application santé du quotidien** qu'on garde sur son écran d'accueil (esprit Apple Santé). **Contrainte absolue : ne jamais modifier l'espace médecin — tout ce sprint ne touche que `/patient`.** Toujours 100 % de données réelles, jamais inventées ; placeholders honnêtes (« Bientôt ») en l'absence de données. **Sprint complet (15 étapes + signature).**
