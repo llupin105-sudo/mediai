@@ -4,6 +4,15 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 15 · Patient Experience Revolution — 2026-08-01
+
+Transformation de l'espace patient (`patient.html`) : de « portail » vers une **application santé du quotidien** qu'on garde sur son écran d'accueil (esprit Apple Santé). **Contrainte absolue : ne jamais modifier l'espace médecin — tout ce sprint ne touche que `/patient`.** Toujours 100 % de données réelles, jamais inventées ; placeholders honnêtes en l'absence de données. *(Sprint en cours.)*
+
+- **① Accueil « compagnon santé »** : l'accueil devient un tableau de bord santé. **❤️ État de santé** (statut de suivi rassurant + dernières constantes réelles tension/poids/pouls/SpO₂/temp lues sur les consultations), **📅 Prochain RDV** + **💊 Traitement du jour** (deux tuiles), **📈 Mon suivi** (sparklines déterministes poids/tension/pouls avec delta factuel — aucune interprétation médicale). Fondation design (tuiles, puces vitales, sparklines SVG). `renderPatientHealthState`/`renderPatientNextRdvTile`/`renderPatientTodayTreatment`/`renderPatientMiniTrends`.
+- **⭐ Mon Parcours Santé** (fonctionnalité signature) : le dossier du patient **raconté pour lui**, en langage clair et rassurant — récit en chapitres (date · titre · texte) façon frise premium + synthèse bienveillante, skeleton de chargement, états vide/erreur. Rappel explicite **« seul votre médecin établit le diagnostic »**. Nouvel endpoint IA patient **`GET /api/patient/parcours`** (`requirePatientAuth`) réutilisant l'infra existante : **anonymisation avant / ré-identification après** l'appel modèle, cache régénéré au changement du dossier (table `patient_parcours`), `PATIENT_PARCOURS_PROMPT` (vouvoiement, zéro diagnostic/conseil). Carte d'entrée gradient sur l'accueil ; remplace la chronologie brute. **N'affecte en rien l'espace médecin.**
+
+---
+
 ## [Non publié] — Sprint 14 · The First Impression — 2026-07-30
 
 Refonte **complète** de la page publique (`index.html`) pour créer une émotion (Apple / Linear / Arc / Nothing), sans casser l'architecture : tokens et palette officiels conservés, sélecteur de connexion Pro/Patient et redirection checkout préservés. Responsive desktop/tablette/mobile dès le départ, `prefers-reduced-motion` géré.
