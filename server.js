@@ -26,7 +26,7 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT, PATIENT_PARCOURS_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT, PATIENT_PARCOURS_PROMPT, PATIENT_CHAT_PROMPT } = require('./prompts');
 const db = require('./db');
 
 // ── Moteur métier du Cockpit (Sprint 6) — fonctions pures déterministes ──
@@ -1969,6 +1969,50 @@ app.get('/api/patient/parcours', aiLimiter, requirePatientAuth, async (req, res)
   } catch (err) {
     console.error('[ERROR patient-parcours]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la génération de votre parcours santé' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/patient/chat  (espace patient — Sprint 15 ②)
+// L'assistant MediAI du patient : il répond aux questions du patient SUR
+// SON PROPRE dossier, uniquement à partir de celui-ci (jamais de diagnostic
+// ni de conseil). Dossier anonymisé avant l'appel modèle, ré-identifié après.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/patient/chat', aiLimiter, requirePatientAuth, async (req, res) => {
+  const question = (req.body && req.body.question || '').trim();
+  const history = Array.isArray(req.body && req.body.history) ? req.body.history.slice(-6) : [];
+  if (!question || question.length < 2) {
+    return res.status(400).json({ error: 'Question trop courte' });
+  }
+  if (question.length > 500) {
+    return res.status(400).json({ error: 'Question trop longue (500 caractères maximum)' });
+  }
+  try {
+    const patient = req.patient;
+    const events = await db.listEventsByPatient(patient.id);
+    const contexte = buildDossierContext(events, null);
+    const historique = history
+      .filter((m) => m && m.content)
+      .map((m) => `${m.role === 'assistant' ? 'Assistant' : 'Vous'} : ${String(m.content).slice(0, 500)}`)
+      .join('\n');
+
+    const medRow = await db.pool.query('SELECT profile_nom FROM users WHERE id = $1', [patient.medecin_id]);
+    const medecinForTerms = { profile: { nom: (medRow.rows[0] || {}).profile_nom || '' } };
+
+    const rawUser = PATIENT_CHAT_PROMPT.user(contexte, historique, question);
+    const { anonymized, tokenMap } = anonymize(rawUser, { knownTerms: buildKnownTerms(patient, medecinForTerms) });
+
+    const { json } = await callClaude({
+      system: PATIENT_CHAT_PROMPT.system,
+      user: anonymized,
+      maxTokens: 700,
+    });
+
+    const restored = JSON.parse(deanonymize(JSON.stringify(json), tokenMap));
+    return res.json({ success: true, reponse: (restored.reponse || '').trim() || "Je ne trouve pas cette information dans votre dossier. Votre médecin pourra vous répondre précisément." });
+  } catch (err) {
+    console.error('[ERROR patient-chat]', req.requestId, err.message);
+    return res.status(500).json({ error: "Erreur lors de l'analyse de votre dossier" });
   }
 });
 
