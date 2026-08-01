@@ -317,6 +317,18 @@ async function initDb() {
   `);
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_uniq ON favorites(medecin_id, item_type, item_id);`);
 
+  // ── Feature flags (Sprint 16) — activation/désactivation sans redéploiement.
+  // Les valeurs par défaut vivent dans le code (server.js) ; cette table ne
+  // stocke QUE les surcharges décidées par un admin.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feature_flags (
+      key TEXT PRIMARY KEY,
+      enabled BOOLEAN NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_by TEXT
+    );
+  `);
+
   console.log('DEBUG - Base de données : tables vérifiées/créées avec succès');
 }
 
@@ -960,9 +972,30 @@ async function listFavorites(medecinId) {
   return { patients: patients.rows, events: events.rows, ids: [...patients.rows, ...events.rows].map((r) => r.id) };
 }
 
+// ── Feature flags (Sprint 16) ─────────────────────────────────────
+async function getFlagOverrides() {
+  const r = await pool.query(`SELECT key, enabled FROM feature_flags`);
+  const out = {};
+  for (const row of r.rows) out[row.key] = row.enabled;
+  return out;
+}
+async function setFlag(key, enabled, updatedBy) {
+  const r = await pool.query(
+    `INSERT INTO feature_flags (key, enabled, updated_by, updated_at)
+     VALUES ($1, $2, $3, now())
+     ON CONFLICT (key) DO UPDATE SET enabled = EXCLUDED.enabled, updated_by = EXCLUDED.updated_by, updated_at = now()
+     RETURNING *`,
+    [key, !!enabled, updatedBy || null]
+  );
+  return r.rows[0];
+}
+
 module.exports = {
   pool,
   initDb,
+  getFlagOverrides,
+  setFlag,
+  createUser,
   createUser,
   getUserByEmail,
   findOrCreateGoogleUser,

@@ -209,10 +209,47 @@ async function requirePatientAuth(req, res, next) {
   }
 }
 
+// ── Administration (Sprint 16) ────────────────────────────────────
+// Un admin est un utilisateur dont l'email figure dans ADMIN_EMAILS
+// (liste séparée par des virgules). Aucun rôle stocké en base : simple,
+// auditable, révocable via l'environnement.
+function adminEmails() {
+  return String(process.env.ADMIN_EMAILS || '')
+    .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
+function isAdmin(user) {
+  return !!user && adminEmails().includes(String(user.email || '').toLowerCase());
+}
+function requireAdmin(req, res, next) {
+  if (!isAdmin(req.medecin)) return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
+  next();
+}
+
+// Feature flags — valeurs par défaut (source dans le code ; la base ne
+// stocke que les surcharges admin). Tout défaut est prudent (désactivé).
+const FEATURE_FLAG_DEFAULTS = {
+  teleconsultation: { enabled: false, label: 'Téléconsultation' },
+  marketplace:      { enabled: false, label: 'Marketplace' },
+  apple_health:     { enabled: false, label: 'Apple Santé / santé connectée' },
+  voice_assistant:  { enabled: false, label: 'Assistant vocal' },
+  vision_pro:       { enabled: false, label: 'Vision Pro' },
+  command_center:   { enabled: true,  label: 'Command Center (admin)' },
+};
+async function resolvedFlags() {
+  let overrides = {};
+  try { overrides = await db.getFlagOverrides(); } catch (e) { /* base indispo : on sert les défauts */ }
+  const out = {};
+  for (const [key, def] of Object.entries(FEATURE_FLAG_DEFAULTS)) {
+    out[key] = { enabled: key in overrides ? !!overrides[key] : def.enabled, label: def.label };
+  }
+  return out;
+}
+
 function publicUser(user) {
   return {
     email: user.email,
     isPro: user.isPro,
+    isAdmin: isAdmin(user),
     freeUsageCount: effectiveFreeUsage(user),
     profile: user.profile,
     preferences: user.preferences,
@@ -465,6 +502,35 @@ app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
   } catch (err) {
     console.error('[ERROR reset-password]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la réinitialisation' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// Feature flags (Sprint 16 · Vague 1)
+// GET /api/flags — public (lecture seule) : les flags pilotent l'UI.
+// PUT /api/admin/flags/:key — admin : bascule sans redéploiement.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/flags', async (req, res) => {
+  try {
+    const flags = await resolvedFlags();
+    return res.json({ flags });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors de la lecture des flags' });
+  }
+});
+
+app.put('/api/admin/flags/:key', requireAuth, requireAdmin, async (req, res) => {
+  const key = req.params.key;
+  if (!(key in FEATURE_FLAG_DEFAULTS)) {
+    return res.status(404).json({ error: 'Flag inconnu' });
+  }
+  try {
+    await db.setFlag(key, !!(req.body && req.body.enabled), req.medecin.email);
+    const flags = await resolvedFlags();
+    return res.json({ success: true, flags });
+  } catch (err) {
+    console.error('[ERROR set-flag]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la mise à jour du flag' });
   }
 });
 
