@@ -519,6 +519,16 @@ app.get('/api/flags', async (req, res) => {
   }
 });
 
+app.get('/api/admin/metrics', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const metrics = await db.getAdminMetrics();
+    return res.json({ metrics });
+  } catch (err) {
+    console.error('[ERROR admin-metrics]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors du calcul des métriques' });
+  }
+});
+
 app.put('/api/admin/flags/:key', requireAuth, requireAdmin, async (req, res) => {
   const key = req.params.key;
   if (!(key in FEATURE_FLAG_DEFAULTS)) {

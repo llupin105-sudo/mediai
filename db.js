@@ -972,6 +972,22 @@ async function listFavorites(medecinId) {
   return { patients: patients.rows, events: events.rows, ids: [...patients.rows, ...events.rows].map((r) => r.id) };
 }
 
+// ── Métriques plateforme (Sprint 16 · Command Center) ─────────────
+// Compteurs AGRÉGÉS uniquement — aucune donnée personnelle, aucun contenu
+// clinique. Sert le cockpit admin avec des chiffres RÉELS (jamais inventés).
+async function getAdminMetrics() {
+  const one = async (sql) => (await pool.query(sql)).rows[0].c;
+  const [users, patients, events, appointments] = await Promise.all([
+    one(`SELECT COUNT(*)::int c FROM users`),
+    one(`SELECT COUNT(*)::int c FROM patients`),
+    one(`SELECT COUNT(*)::int c FROM medical_events`),
+    one(`SELECT COUNT(*)::int c FROM appointments`),
+  ]);
+  const byType = (await pool.query(`SELECT type, COUNT(*)::int c FROM medical_events GROUP BY type`)).rows
+    .reduce((acc, r) => { acc[r.type] = r.c; return acc; }, {});
+  return { users, patients, events, appointments, eventsByType: byType };
+}
+
 // ── Feature flags (Sprint 16) ─────────────────────────────────────
 async function getFlagOverrides() {
   const r = await pool.query(`SELECT key, enabled FROM feature_flags`);
@@ -993,6 +1009,7 @@ async function setFlag(key, enabled, updatedBy) {
 module.exports = {
   pool,
   initDb,
+  getAdminMetrics,
   getFlagOverrides,
   setFlag,
   createUser,
