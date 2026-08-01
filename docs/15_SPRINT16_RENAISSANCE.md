@@ -2,7 +2,7 @@
 
 > **Changement de posture.** À partir du Sprint 16, MediAI n'est plus un prototype qu'on étend fonctionnalité par fonctionnalité : c'est un **produit** qui doit tenir dix ans et se justifier devant un CHU, un investisseur, YC ou Apple. Ce document est l'**audit** (Étape 1) et la **feuille de route** qui en découle. **Aucun code n'est écrit avant validation de cette analyse.**
 
-Date : 2026-08-01 · Auteur : CTO (Claude) · Statut : proposé, en attente d'arbitrage.
+Date : 2026-08-01 · Auteur : CTO (Claude) · Statut : **accepté et exécuté** (4 vagues livrées). Arbitrages validés : ADR/hooks pour l'infra prématurée ; fondations d'abord.
 
 ---
 

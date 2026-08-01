@@ -6,7 +6,7 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ## [Non publié] — Sprint 16 · Project Renaissance — 2026-08-01
 
-Changement de posture : d'un excellent prototype vers un **produit** pensé pour durer (posture CTO). Audit chiffré + feuille de route en vagues dans [15_SPRINT16_RENAISSANCE.md](15_SPRINT16_RENAISSANCE.md). Ligne rouge : **transparence non négociable** (jamais « HDS conforme », jamais un chiffre inventé). *(Sprint en cours — Vagues 0 et 1 livrées.)*
+Changement de posture : d'un excellent prototype vers un **produit** pensé pour durer (posture CTO). Audit chiffré + feuille de route en vagues dans [15_SPRINT16_RENAISSANCE.md](15_SPRINT16_RENAISSANCE.md). Ligne rouge : **transparence non négociable** (jamais « HDS conforme », jamais un chiffre inventé). **Sprint complet — 4 vagues livrées.**
 
 **Vague 0 — Design System v2 (fondation).**
 - **`mediai-site/tokens.css`** devient la **source unique** des design tokens (palette, typo, spacing, radius, élévation, motion, composants + `:focus-visible`/`prefers-reduced-motion` partagés). Chargée par les 3 frontends.
@@ -17,6 +17,14 @@ Changement de posture : d'un excellent prototype vers un **produit** pensé pour
 - **i18n** (`i18n.js`) : mécanisme léger sans build (`data-i18n`, langue persistée, repli fr) ; **FR/EN** traduits sur le Trust Center (preuve), es/it en repli honnête.
 - **Feature flags** (activation **sans redéploiement**) : table `feature_flags` (surcharges admin), `GET /api/flags` (public) + `PUT /api/admin/flags/:key` (admin), notion d'admin minimale et auditable (`ADMIN_EMAILS`, `isAdmin`, `requireAdmin`), helper client `flags.js`.
 - **⭐ Command Center** (`/admin`, shell) : cockpit admin (portail réel via jeton médecin + `isAdmin`). Santé du système (ping réel), **UI de bascule des flags en direct**, **feuille de route** (badges), métriques produit « À instrumenter » (Vague 2 — jamais de faux chiffre).
+**Vague 2 — Plateforme.**
+- **Moteur de notifications** (`notif-engine.js`) : module déterministe partagé — priorité, déduplication, plafond, « non lus » persistants (jamais de bruit, jamais de donnée inventée). Intégré à l'app patient (accents de priorité, « Tout marquer comme lu », badge qui s'efface après lecture).
+- **Command Center — santé réelle** via `/health` (version, base de données, conformité).
+- **Cartographie de navigation** ([16_NAVIGATION.md](16_NAVIGATION.md)) : preuve de la règle des **2 clics** (⌘K médecin, tabbar+hub patient). **ADR** ([17_ADR.md](17_ADR.md)) : plugins (pas de runtime), observabilité (hooks d'abord), analytics (privacy-first), tokens.
+
+**Vague 3 — ⭐ Command Center complet.**
+- **Métriques produit RÉELLES** via `GET /api/admin/metrics` (admin) : compteurs agrégés (comptes, patients, documents par type, RDV) — aucune donnée personnelle. « Temps gagné » / feedbacks restent **« À instrumenter »** (ADR-003).
+- **Entrée « Command Center »** dans la sidebar médecin, visible seulement si `isAdmin` **et** flag `command_center` actif — **consommation réelle d'un feature flag** (masquable sans redéploiement).
 - **Décision CTO** : runtime de plugins/Marketplace, observabilité et analytics restent au stade **ADR/hooks** (pas d'infra spéculative ni de faux dashboards) — validé.
 
 > ⚙️ **Action requise (config)** : définir `ADMIN_EMAILS` (emails séparés par des virgules) dans l'environnement du backend Render pour ouvrir l'accès au Command Center.

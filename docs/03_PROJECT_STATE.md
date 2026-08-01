@@ -2,8 +2,10 @@
 
 > **État vivant du projet.** À mettre à jour à la fin de chaque session de travail significative. C'est le fichier qu'on lit pour savoir « où on en est ».
 
-**Version produit :** V1 (qualité commercialisable — Sprint 9 ; UX refondue — Sprints 10-11 ; copilote clinique — Sprint 12 ; app patient autonome — Sprint 15)
-**Dernière consolidation :** 2026-08-01 (Sprint 15 — Patient Experience Revolution, complet)
+**Version produit :** V1 (qualité commercialisable — Sprint 9 ; UX refondue — Sprints 10-11 ; copilote clinique — Sprint 12 ; app patient autonome — Sprint 15 ; maturité produit/plateforme — Sprint 16)
+**Dernière consolidation :** 2026-08-01 (Sprint 16 — Project Renaissance, complet)
+
+> ⚙️ **Config à faire (Sprint 16)** : définir `ADMIN_EMAILS` dans l'environnement Render pour ouvrir l'accès au Command Center (`/admin`).
 
 ---
 
@@ -56,6 +58,8 @@
 - 🔄 **Sprint 3 — Ambient AI Consultation** : **3.1 livré** (panneau « Consultation prête » : ordonnance/courrier en un clic, suites, constantes). **3.2 livré** (carte « Évolution des constantes » dans le Cockpit : sparklines tension/poids/pouls/temp/SpO₂ lues sur les consultations, 100 % déterministe — clôt le point 4 du Cockpit). Restant : tâches de suivi persistantes, polish enregistrement vocal.
 - 🔄 **Sprint 4 — Signaux & alertes proactifs** (pilier « détecter ») : **4.1 livré** — moteur de détection déterministe (`computePatientSignals`), carte « Signaux détectés » en tête du Cockpit + panneau « Signaux cliniques » transversal sur le dashboard. 100 % déterministe (aucune IA, observations factuelles « à vérifier »). Restant : interactions sur tout le dossier, tendances de constantes, seuils réglables.
 - ⏭️ Différenciation patient · signaux avancés. → [11_ROADMAP.md](11_ROADMAP.md).
+
+**⭐ En production (2026-08-01)** — **Sprint 16 · Project Renaissance** (complet, posture CTO) : passage d'un excellent prototype à un **produit** pensé pour durer. **Vague 0** — Design System v2 (`tokens.css` source unique des 3 frontends, `--sage` supprimé, bug `--bg-secondary` corrigé, a11y AA de base). **Vague 1** — Trust Center honnête (`/trust`, FR/EN), mécanisme i18n, **feature flags sans redéploiement** (`/api/flags` + admin), shell du **Command Center** (`/admin`). **Vague 2** — **moteur de notifications** partagé (priorité/dédup/non-lus), cartographie de navigation (règle des 2 clics), **ADR** (plugins/observabilité/analytics restent au stade doc+hooks). **Vague 3** — Command Center complet : **métriques réelles** (`/api/admin/metrics`, agrégats sans donnée perso), entrée sidebar médecin gated `isAdmin`+flag. Transparence non négociable tenue partout (jamais « HDS conforme », jamais de chiffre inventé). Docs : [15_SPRINT16_RENAISSANCE](15_SPRINT16_RENAISSANCE.md), [16_NAVIGATION](16_NAVIGATION.md), [17_ADR](17_ADR.md). → [CHANGELOG.md](CHANGELOG.md).
 
 **⭐ En production (2026-08-01)** — **Sprint 15 · Patient Experience Revolution** (complet) : l'espace patient (`patient.html` uniquement — **espace médecin jamais touché**) devient une **application santé du quotidien** (esprit Apple Santé) présentable seule. Nouvelle navigation **Accueil · Santé · Assistant · Documents · Profil** + hub Santé. 15 étapes : accueil compagnon santé, **Assistant IA patient** (`POST /api/patient/chat`), rendez-vous riches (+ .ics), traitements (matin/midi/soir), documents détaillés + **résultats reportés fidèlement** (normes/mentions du labo, jamais d'interprétation inventée), préparer sa consultation, notifications, historique, profil, santé connectée (« Bientôt » honnête), évolution (graphes déterministes), sécurité (**export JSON de ses données**), polish premium (haptics, a11y, bannière proactive). **⭐ Fonctionnalité signature « Mon Parcours Santé »** : le dossier raconté au patient en langage clair (`GET /api/patient/parcours`). 2 endpoints IA patient additifs réutilisant l'infra (anonymisation avant/après, cache), prompts dédiés, table `patient_parcours`. Données toujours réelles ; « seul votre médecin établit le diagnostic » affiché. → [CHANGELOG.md](CHANGELOG.md).
 
