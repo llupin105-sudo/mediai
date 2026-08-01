@@ -147,6 +147,19 @@ async function initDb() {
     );
   `);
 
+  // ── Mon Parcours Santé (Sprint 15, espace PATIENT) ──
+  // Cache d'une ligne par patient : récit du parcours de soin en langage
+  // clair, régénéré quand le nombre d'événements du dossier change.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS patient_parcours (
+      patient_id UUID PRIMARY KEY REFERENCES patients(id) ON DELETE CASCADE,
+      data JSONB NOT NULL,
+      source_events_count INTEGER NOT NULL DEFAULT 0,
+      tokens_used INTEGER,
+      generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id UUID PRIMARY KEY,
@@ -558,6 +571,28 @@ async function saveTimelineNarrative({ patientId, data, sourceEventsCount, token
   return result.rows[0];
 }
 
+// ── Mon Parcours Santé (espace patient, Sprint 15) ────────────────
+
+async function getPatientParcours(patientId) {
+  const result = await pool.query(`SELECT * FROM patient_parcours WHERE patient_id = $1`, [patientId]);
+  return result.rows[0] || null;
+}
+
+async function savePatientParcours({ patientId, data, sourceEventsCount, tokensUsed }) {
+  const result = await pool.query(
+    `INSERT INTO patient_parcours (patient_id, data, source_events_count, tokens_used, generated_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (patient_id) DO UPDATE
+       SET data = EXCLUDED.data,
+           source_events_count = EXCLUDED.source_events_count,
+           tokens_used = EXCLUDED.tokens_used,
+           generated_at = now()
+     RETURNING *`,
+    [patientId, JSON.stringify(data), sourceEventsCount, tokensUsed || null]
+  );
+  return result.rows[0];
+}
+
 // ── Audit HDS ─────────────────────────────────────────────────────
 
 async function logAudit({ id, method, path, ip, userEmail, requestId }) {
@@ -952,6 +987,8 @@ module.exports = {
   savePatientSynthesis,
   getTimelineNarrative,
   saveTimelineNarrative,
+  getPatientParcours,
+  savePatientParcours,
   logAudit,
   // Sprint 6 — Cockpit, RDV, tâches, workspace, messagerie
   listEventsByMedecin,

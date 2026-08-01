@@ -26,7 +26,7 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT, PATIENT_PARCOURS_PROMPT } = require('./prompts');
 const db = require('./db');
 
 // ── Moteur métier du Cockpit (Sprint 6) — fonctions pures déterministes ──
@@ -1896,6 +1896,79 @@ app.get('/api/patient/timeline', requirePatientAuth, async (req, res) => {
     return res.json({ events });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur lors de la récupération de la chronologie' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/patient/parcours  (espace patient — Sprint 15, ⭐ signature)
+// « Mon Parcours Santé » : le dossier du patient raconté pour LUI, en
+// langage clair et rassurant. L'IA reformule uniquement ce qui existe déjà
+// dans le dossier (jamais de diagnostic ni de conseil : seul le médecin
+// établit le diagnostic). Données anonymisées avant l'appel au modèle,
+// ré-identifiées après. Caché (table patient_parcours), régénéré quand le
+// dossier change ; ?refresh=1 force la régénération.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/patient/parcours', aiLimiter, requirePatientAuth, async (req, res) => {
+  try {
+    const patient = req.patient;
+    const events = await db.listEventsByPatient(patient.id);
+    if (!events || events.length === 0) {
+      return res.json({ success: true, chapitres: [], synthese: '', empty: true });
+    }
+
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const cached = await db.getPatientParcours(patient.id);
+    if (!forceRefresh && cached && cached.source_events_count === events.length) {
+      return res.json({
+        success: true,
+        chapitres: (cached.data && cached.data.chapitres) || [],
+        synthese: (cached.data && cached.data.synthese) || '',
+        cached: true,
+      });
+    }
+
+    // Parcours compact, ordre chronologique croissant, faits utiles au patient.
+    const parcoursText = events.slice().reverse().map((e) => {
+      const d = e.data || {};
+      const date = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (e.type === 'consultation') {
+        const c = (d.sections && d.sections.objectif && d.sections.objectif.constantes) || d.constantes || null;
+        const cst = c ? ' | Constantes : ' + Object.entries(c).filter(([, v]) => v != null && v !== '').map(([k, v]) => `${k} ${v}`).join(', ') : '';
+        return `${date} — Consultation : ${d.resume_1_ligne || d.motif || e.title}${cst}`;
+      }
+      if (e.type === 'ordonnance') {
+        const meds = (d.prescriptions || []).map((p) => [p.medicament, p.posologie, p.duree].filter(Boolean).join(' ')).filter(Boolean).join(' ; ');
+        return `${date} — Traitement prescrit : ${meds || e.title}`;
+      }
+      if (e.type === 'courrier') return `${date} — Courrier : ${d.objet || e.title}`;
+      if (e.type === 'analyse_labo') {
+        const rs = Array.isArray(d.resultats) ? d.resultats.filter((r) => r && r.parametre).slice(0, 12).map((r) => `${r.parametre} ${r.valeur != null ? r.valeur : ''}`.trim()).join(', ') : '';
+        return `${date} — Analyses : ${e.title}${rs ? ' | ' + rs : ''}`;
+      }
+      if (e.type === 'imagerie') return `${date} — Imagerie : ${d.conclusion || e.title}`;
+      return `${date} — ${e.type} : ${e.title}`;
+    }).join('\n');
+
+    const medRow = await db.pool.query('SELECT profile_nom FROM users WHERE id = $1', [patient.medecin_id]);
+    const medecinForTerms = { profile: { nom: (medRow.rows[0] || {}).profile_nom || '' } };
+
+    const rawUser = PATIENT_PARCOURS_PROMPT.user(parcoursText);
+    const { anonymized, tokenMap } = anonymize(rawUser, { knownTerms: buildKnownTerms(patient, medecinForTerms) });
+
+    const { json, tokensUsed } = await callClaude({
+      system: PATIENT_PARCOURS_PROMPT.system,
+      user: anonymized,
+      maxTokens: 1500,
+    });
+
+    const restored = JSON.parse(deanonymize(JSON.stringify(json), tokenMap));
+    const data = { chapitres: Array.isArray(restored.chapitres) ? restored.chapitres : [], synthese: (restored.synthese || '').trim() };
+
+    await db.savePatientParcours({ patientId: patient.id, data, sourceEventsCount: events.length, tokensUsed });
+    return res.json({ success: true, chapitres: data.chapitres, synthese: data.synthese, cached: false });
+  } catch (err) {
+    console.error('[ERROR patient-parcours]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la génération de votre parcours santé' });
   }
 });
 

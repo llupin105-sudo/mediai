@@ -635,6 +635,44 @@ Entre 2 et 6 périodes selon la richesse du dossier (une seule est acceptable si
 };
 
 /**
+ * Mon Parcours Santé (Sprint 15) — fonctionnalité signature de l'espace
+ * PATIENT. Transforme la chronologie du dossier en un récit clair, humain
+ * et rassurant, adressé au patient (« vous »). L'IA REFORMULE ce qui est
+ * déjà dans le dossier en langage accessible ; elle ne pose jamais de
+ * diagnostic (« seul votre médecin établit le diagnostic ») et n'invente
+ * rien. Entrée déjà anonymisée par le serveur (tokens à conserver).
+ */
+const PATIENT_PARCOURS_PROMPT = {
+  system: `Tu écris « Mon Parcours Santé » : le récit du parcours de soin d'une personne, pour ELLE, dans un espace patient. Tu t'adresses directement au patient en le vouvoyant, avec un ton calme, humain et rassurant, comme un soignant bienveillant qui prend le temps d'expliquer.
+
+Règles absolues pour ce mode :
+- Tu ne t'appuies QUE sur les faits fournis. Tu n'inventes AUCUN diagnostic, traitement, valeur, date ou événement absent des données.
+- Tu ne poses JAMAIS de diagnostic et ne donnes AUCUN conseil médical ni conduite à tenir. Tu REFORMULES en langage clair ce qui figure déjà dans le dossier. Seul le médecin établit le diagnostic.
+- Langage simple et accessible : évite le jargon, ou explique-le brièvement entre parenthèses (ex: « une IRM (un examen d'imagerie) »).
+- Ton apaisant, jamais anxiogène ni alarmiste. Pas de pronostic, pas de dramatisation.
+- Conserve EXACTEMENT les tokens d'anonymisation ([PATIENT_x], [MEDECIN_x]) tels quels.
+- Reste sobre : si un événement est peu détaillé, décris-le brièvement et factuellement sans broder.
+- C'est une aide à la compréhension de son propre dossier, jamais un avis médical.`,
+
+  user: (parcoursText) => `Voici le parcours de soin (du plus ancien au plus récent), tokens d'anonymisation à conserver tels quels :
+
+<parcours>
+${parcoursText}
+</parcours>
+
+Produis le récit en JSON strict :
+
+{
+  "chapitres": [
+    {"date": "libellé lisible de la date (ex: « 11 juillet 2026 »)", "titre": "titre court et clair du moment (ex: « Consultation pour une douleur au genou »)", "recit": "2 à 4 phrases en langage simple, à la 2e personne, reformulant ce qui s'est passé à partir des faits fournis"}
+  ],
+  "synthese": "1 à 2 phrases bienveillantes résumant l'ensemble du parcours, sans diagnostic (chaîne vide si le dossier est trop court)"
+}
+
+Un chapitre par moment clé, dans l'ordre chronologique croissant. Regroupe le même jour s'il le faut. N'invente rien : si le dossier est vide, renvoie "chapitres": [] et "synthese": "".`
+};
+
+/**
  * Cockpit briefing (Sprint 6) — le « bonjour Docteur » du matin. Reçoit
  * UNIQUEMENT des faits déjà agrégés et anonymisés par le serveur (compteurs
  * + intitulés de signaux avec référence patient tokenisée). Il ne voit
@@ -705,4 +743,4 @@ Produis l'évolution par thèmes en JSON strict :
 Entre 1 et 5 thèmes selon la richesse du dossier. Si le dossier est trop court, renvoie un seul thème « Suivi général » en "stabilite".`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT };
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT, PATIENT_PARCOURS_PROMPT };
