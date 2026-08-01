@@ -988,6 +988,32 @@ async function getAdminMetrics() {
   return { users, patients, events, appointments, eventsByType: byType };
 }
 
+// ── Journal du cabinet (Sprint 17) ────────────────────────────────
+// Compteurs RÉELS d'activité du médecin par période (aujourd'hui / 7 j /
+// 30 j / total), depuis medical_events (medecin_id direct). Basé sur
+// created_at (moment où le document a été produit dans MediAI).
+async function getJournalStats(medecinId) {
+  const r = await pool.query(
+    `SELECT e.type,
+       COUNT(*) FILTER (WHERE e.created_at >= date_trunc('day', now()))::int AS today,
+       COUNT(*) FILTER (WHERE e.created_at >= now() - interval '7 days')::int AS week,
+       COUNT(*) FILTER (WHERE e.created_at >= now() - interval '30 days')::int AS month,
+       COUNT(*)::int AS total
+     FROM medical_events e
+     WHERE e.medecin_id = $1
+     GROUP BY e.type`,
+    [medecinId]
+  );
+  const periods = { today: {}, week: {}, month: {}, total: {} };
+  for (const row of r.rows) {
+    periods.today[row.type] = row.today;
+    periods.week[row.type] = row.week;
+    periods.month[row.type] = row.month;
+    periods.total[row.type] = row.total;
+  }
+  return periods;
+}
+
 // ── Feature flags (Sprint 16) ─────────────────────────────────────
 async function getFlagOverrides() {
   const r = await pool.query(`SELECT key, enabled FROM feature_flags`);
@@ -1010,6 +1036,7 @@ module.exports = {
   pool,
   initDb,
   getAdminMetrics,
+  getJournalStats,
   getFlagOverrides,
   setFlag,
   createUser,

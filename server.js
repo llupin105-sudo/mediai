@@ -519,6 +519,34 @@ app.get('/api/flags', async (req, res) => {
   }
 });
 
+// ────────────────────────────────────────────────────────────────────
+// GET /api/journal  (Sprint 17 · Journal du cabinet)
+// Activité RÉELLE du médecin par période + estimation TRANSPARENTE du temps
+// gagné (hypothèses affichées, jamais présentées comme mesurées).
+// ────────────────────────────────────────────────────────────────────
+const JOURNAL_MIN_SAVED = { consultation: 7, ordonnance: 2, analyse_labo: 3, imagerie: 3, courrier: 4 };
+app.get('/api/journal', requireAuth, async (req, res) => {
+  try {
+    const periods = await db.getJournalStats(req.medecin.id);
+    const minutesFor = (counts) => Object.entries(counts || {})
+      .reduce((sum, [type, n]) => sum + (JOURNAL_MIN_SAVED[type] || 0) * n, 0);
+    const estimation = {
+      hypotheses: JOURNAL_MIN_SAVED,           // minutes/type — affichées côté client
+      minutes: {
+        today: minutesFor(periods.today),
+        week: minutesFor(periods.week),
+        month: minutesFor(periods.month),
+        total: minutesFor(periods.total),
+      },
+      note: 'Estimation à titre indicatif, calculée à partir du nombre de documents produits — non mesurée.',
+    };
+    return res.json({ periods, estimation });
+  } catch (err) {
+    console.error('[ERROR journal]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors du calcul du journal' });
+  }
+});
+
 app.get('/api/admin/metrics', requireAuth, requireAdmin, async (req, res) => {
   try {
     const metrics = await db.getAdminMetrics();
