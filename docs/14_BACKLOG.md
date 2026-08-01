@@ -13,7 +13,7 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 | 1 | 🔴 | Conformité HDS | Bloqueur avant vrais patients. Voir [10_SECURITY.md](10_SECURITY.md). |
 | 2 | 🟠 | `DROP TABLE compte_rendus` | Table legacy retirée du code ; exécuter le `DROP` manuel sur les bases existantes après vérification. → [07_DATABASE.md](07_DATABASE.md). |
 | 3 | 🟠 | Quota = 2 crédits/consultation | Transcription + analyse consomment 2 crédits sur 3. Relever `FREE_LIMIT` ou exclure les endpoints légers. → [08_AI_SYSTEM.md](08_AI_SYSTEM.md). |
-| 4 | 🟠 | Tokens `--sage*` mal nommés | Héritage de l'ancienne identité verte, pointent vers le bleu. Renommer en `--accent*`. → [04_DESIGN_SYSTEM.md](04_DESIGN_SYSTEM.md). |
+| 4 | ✅ | Tokens `--sage*` mal nommés | **Résolu (Sprint 16)** : supprimés (195 occurrences) au profit de `--accent*`, désormais dans la source unique `tokens.css`. |
 | 5 | ✅ | Échelle d'espacement tokenisée | `--space-1…8` (base 4 px) introduits (Sprint 9). Alias `--accent*` + bouton canonique `.btn` ajoutés. |
 | 6 | 🟠 | Stockage de documents | PDF générés côté client, non stockés → timeline documents patient incomplète. Décider un stockage objet S3-compatible (aligné HDS). |
 | 7 | 🟢 | Anonymisation des tiers | Noms de confrères cités sans civilité restent best-effort (nécessiterait un NER). |
@@ -38,6 +38,7 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 | 26 | 🟢 | Base médicament (notice/effets/photo) | Traitements patient affichent « notice à demander au pharmacien » faute de base médicament (Vidal/BDPM). Intégrer la BDPM ouvrirait notice, effets et visuels. |
 | 27 | 🟢 | Normes de référence labo manquantes | Résultats patient reportent `valeurs_reference` uniquement si le labo les fournit. Sans base de normes, pas d'aide à la lecture — à ne PAS inventer (règle d'or). |
 | 28 | 🟢 | `patient.html` monofichier (~1500 lignes) | A bien grossi au Sprint 15 (13 vues + IA). Extraction en modules ES (sans build) à envisager si la vélocité baisse. |
+| 29 | 🟠 | Réconciliation `:root` patient/landing sur `tokens.css` | Sprint 16 : `app.html` consomme entièrement la source unique ; `patient.html` et `index.html` gardent un `:root` local (rayons doux patient, fond blanc landing). Terminer la migration avec diff visuel par surface. → [tokens.css](../../mediai-site/tokens.css). |
 
 ---
 

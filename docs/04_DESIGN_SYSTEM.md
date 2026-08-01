@@ -1,8 +1,12 @@
 # 04 — DESIGN SYSTEM
 
-> **Référence officielle du design MediAI.** Aucun composant ne doit être créé sans respecter ce document. Source d'implémentation : le bloc `:root` en tête de `mediai-site/index.html` (et son équivalent dans `patient.html`).
+> **Référence officielle du design MediAI.** Aucun composant ne doit être créé sans respecter ce document.
+>
+> **⭐ Source unique de vérité (Design System v2, Sprint 16) : [`mediai-site/tokens.css`](../../mediai-site/tokens.css).** Ce fichier est chargé par les trois frontends (`index.html`, `app.html`, `patient.html`) **avant** leur `<style>`. Toute nouvelle page/composant utilise ces variables — jamais de valeur en dur, jamais de `:root` local qui redéfinit un token.
+>
+> État de la migration : `app.html` consomme **entièrement** `tokens.css` (plus de `:root` local). `patient.html` et `index.html` conservent encore un `:root` local pour leurs quelques tokens de surface spécifiques (rayons plus doux côté patient, fond blanc de la landing) — réconciliation complète à terminer (backlog).
 
-Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Linear, chaleur type Notion. Le pivot vers le bleu (juillet 2026, chantier `phase-1bis-ui`) remplace l'ancienne piste « marine/sage/vert ».
+Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Linear, chaleur type Notion. Le pivot vers le bleu (juillet 2026, chantier `phase-1bis-ui`) remplace l'ancienne piste « marine/sage/vert ». **Le token legacy `--sage*` a été supprimé (Sprint 16) au profit de `--accent*`.**
 
 ---
 
