@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 17 · The Intelligent Clinic — 2026-08-01
+
+MediAI n'attend plus, il **travaille pour le médecin**. Posture CPO + CTO. Audit préalable ([18_SPRINT17_INTELLIGENT_CLINIC.md](18_SPRINT17_INTELLIGENT_CLINIC.md)) : **~60 % du cahier existait déjà** (Copilote, signaux prédictifs, Smart Timeline, pré-consult, dossier vivant) — décision de CPO d'**élever/unifier** plutôt que reconstruire (règle #4). Conflits signalés et résolus honnêtement (temps gagné = estimation transparente ; PDF = périmètre synthétique ; mobile = passe responsive réaliste). *(Sprint en cours — Vagues A et B livrées.)*
+
+**Vague A — ⭐ Copilote omniprésent.** Unifie le Copilote dossier (IA) et l'Assistant dashboard (déterministe) en **un** copilote joignable partout : lanceur flottant + **⌘J** sur toutes les vues. Mode **cockpit** (hors dossier) → exploitation de la journée en déterministe instantané (« prépare mon après-midi », examens arrivés, renouvellements, priorités) ; mode **dossier** → IA anonymisée. Badge « IA · à vérifier » partout. Aucune nouvelle dépendance backend.
+
+**Vague B — Temps & friction.**
+- **Journal du cabinet** (nouvelle vue) : « Ce que MediAI a fait pour vous » — activité **réelle** par période (jour/7j/30j, `GET /api/journal` sur `medical_events`) + **temps gagné en estimation transparente** (hypothèses minutes/type affichées, étiqueté « non mesuré »).
+- **Quick Actions** : menu rapide sur la carte patient (Ouvrir · ✦ Demander au Copilote · Préparer) — agir sans ouvrir le dossier ; « Demander au Copilote » ouvre dossier + Copilote en un geste.
+
 ## [Non publié] — Sprint 16 · Project Renaissance — 2026-08-01
 
 Changement de posture : d'un excellent prototype vers un **produit** pensé pour durer (posture CTO). Audit chiffré + feuille de route en vagues dans [15_SPRINT16_RENAISSANCE.md](15_SPRINT16_RENAISSANCE.md). Ligne rouge : **transparence non négociable** (jamais « HDS conforme », jamais un chiffre inventé). **Sprint complet — 4 vagues livrées.**
