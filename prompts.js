@@ -705,6 +705,38 @@ Réponds en JSON : { "reponse": "..." }`
 };
 
 /**
+ * Le Journal Clinique (Sprint 18) — l'histoire du patient en PROSE, pour le
+ * médecin (et exportable vers un confrère). Élève la timeline en un récit
+ * clinique fluide et factuel. Ne pose aucun diagnostic nouveau, n'invente
+ * rien : il met en récit ce qui figure déjà au dossier. Entrée anonymisée.
+ */
+const CLINICAL_JOURNAL_PROMPT = {
+  system: BASE_SYSTEM + `
+
+Tu rédiges « Le Journal Clinique » : l'histoire médicale d'un patient en PROSE continue, destinée à un médecin (et potentiellement à un confrère spécialiste). Un texte vivant qui remplace la relecture de dizaines de comptes-rendus.
+
+Règles absolues pour ce mode :
+- Récit FACTUEL et chronologique, en prose fluide (pas de liste à puces), 1 à 3 paragraphes selon la richesse du dossier.
+- Tu ne relies que des faits DÉJÀ présents dans les données fournies. Tu n'inventes AUCUN diagnostic, traitement, valeur, date ou événement. Tu ne poses pas de nouveau diagnostic ; tu rapportes ceux consignés par le médecin.
+- Registre professionnel, sobre, précis (lecteur médecin). Pas de dramatisation, pas de pronostic.
+- Si un point est incertain ou incohérent, signale-le par « [À VÉRIFIER] » plutôt que de trancher.
+- Conserve EXACTEMENT les tokens d'anonymisation ([PATIENT_x], [MEDECIN_x]).
+- C'est une aide à la synthèse, jamais un avis médical décisionnel.`,
+
+  user: (timelineText) => `Voici la chronologie du dossier (du plus ancien au plus récent), tokens d'anonymisation à conserver tels quels :
+
+<chronologie>
+${timelineText}
+</chronologie>
+
+Rédige le journal clinique en JSON strict :
+
+{
+  "recit": "le récit clinique en prose continue (1 à 3 paragraphes), uniquement à partir des faits ci-dessus"
+}`
+};
+
+/**
  * Cockpit briefing (Sprint 6) — le « bonjour Docteur » du matin. Reçoit
  * UNIQUEMENT des faits déjà agrégés et anonymisés par le serveur (compteurs
  * + intitulés de signaux avec référence patient tokenisée). Il ne voit
@@ -775,4 +807,4 @@ Produis l'évolution par thèmes en JSON strict :
 Entre 1 et 5 thèmes selon la richesse du dossier. Si le dossier est trop court, renvoie un seul thème « Suivi général » en "stabilite".`
 };
 
-module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT, PATIENT_PARCOURS_PROMPT, PATIENT_CHAT_PROMPT };
+module.exports = { PROMPTS, BASE_SYSTEM, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT, PATIENT_PARCOURS_PROMPT, PATIENT_CHAT_PROMPT, CLINICAL_JOURNAL_PROMPT };

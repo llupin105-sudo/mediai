@@ -26,7 +26,7 @@ const Stripe = require('stripe');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const { anonymize, deanonymize } = require('./anonymizer');
-const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT, PATIENT_PARCOURS_PROMPT, PATIENT_CHAT_PROMPT } = require('./prompts');
+const { PROMPTS, DOSSIER_SUMMARY_PROMPT, SEARCH_PROMPT, PRE_CONSULT_PROMPT, INTERACTION_CHECK_PROMPT, SYMPTOM_QUESTIONS_PROMPT, LAB_STRUCTURING_PROMPT, IMAGING_STRUCTURING_PROMPT, PATIENT_SNAPSHOT_PROMPT, TIMELINE_NARRATIVE_PROMPT, COCKPIT_BRIEFING_PROMPT, EVOLUTION_PROMPT, DOSSIER_CHAT_PROMPT, SEARCH_INTERPRET_PROMPT, PATIENT_PARCOURS_PROMPT, PATIENT_CHAT_PROMPT, CLINICAL_JOURNAL_PROMPT } = require('./prompts');
 const db = require('./db');
 
 // ── Moteur métier du Cockpit (Sprint 6) — fonctions pures déterministes ──
@@ -1475,6 +1475,76 @@ app.get('/api/patients/:id/timeline-narrative', aiLimiter, requireAuth, async (r
   } catch (err) {
     console.error('[ERROR timeline-narrative]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la génération du récit de la chronologie' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// GET /api/patients/:id/journal-clinique  (Sprint 18 · Le Journal Clinique)
+// L'histoire du patient en PROSE (médecin, exportable). Élève la timeline en
+// récit clinique fluide. Anonymisation (nom tokenisé) avant l'appel modèle,
+// ré-identification après. Caché (clinical_journals), régénéré au changement.
+// Non décompté du quota (fonction toujours active) ; ?refresh=1 force.
+// ────────────────────────────────────────────────────────────────────
+app.get('/api/patients/:id/journal-clinique', aiLimiter, requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const events = await db.listEventsByPatient(patient.id);
+    if (events.length < 1) {
+      return res.json({ success: true, recit: '', empty: true });
+    }
+
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const cached = await db.getClinicalJournal(patient.id);
+    if (!forceRefresh && cached && cached.source_events_count === events.length) {
+      return res.json({ success: true, recit: (cached.data && cached.data.recit) || '', cached: true });
+    }
+
+    // Chronologie compacte et riche (diagnostics, traitements, résultats),
+    // ordre croissant, nom du patient tokenisé.
+    const lines = events.slice().reverse().map((e) => {
+      const d = e.data || {};
+      const date = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (e.type === 'consultation') {
+        const s = d.sections || {};
+        const diag = s.assessment && (s.assessment.diagnostic_principal || s.assessment.diagnostic);
+        const suivi = s.plan && s.plan.suivi;
+        return `${date} — Consultation : ${d.resume_1_ligne || e.title}${diag ? ' | Diagnostic : ' + diag : ''}${suivi ? ' | Suivi : ' + suivi : ''}`;
+      }
+      if (e.type === 'ordonnance') {
+        const meds = (d.prescriptions || []).map((p) => [p.medicament, p.duree].filter(Boolean).join(' ')).filter(Boolean).join(', ');
+        return `${date} — Traitement : ${meds || e.title}`;
+      }
+      if (e.type === 'courrier') return `${date} — Courrier : ${d.objet || e.title}`;
+      if (e.type === 'analyse_labo') {
+        const rs = Array.isArray(d.resultats) ? d.resultats.filter((r) => r && r.parametre).slice(0, 8).map((r) => `${r.parametre} ${r.valeur != null ? r.valeur : ''}`.trim()).join(', ') : '';
+        return `${date} — Analyses : ${e.title}${rs ? ' (' + rs + ')' : ''}`;
+      }
+      if (e.type === 'imagerie') return `${date} — Imagerie : ${d.conclusion_radiologue || e.title}`;
+      return `${date} — ${e.type} : ${e.title}`;
+    });
+    let timelineText = lines.join('\n');
+    if (patient.prenom) timelineText = timelineText.split(patient.prenom).join('[PATIENT_PRENOM]');
+    if (patient.nom) timelineText = timelineText.split(patient.nom).join('[PATIENT_NOM]');
+
+    const { json, tokensUsed } = await callClaude({
+      system: CLINICAL_JOURNAL_PROMPT.system,
+      user: CLINICAL_JOURNAL_PROMPT.user(timelineText),
+      maxTokens: 1100,
+    });
+
+    let str = JSON.stringify(json);
+    if (patient.prenom) str = str.split('[PATIENT_PRENOM]').join(patient.prenom);
+    if (patient.nom) str = str.split('[PATIENT_NOM]').join(patient.nom);
+    const data = { recit: (JSON.parse(str).recit || '').trim() };
+
+    await db.saveClinicalJournal({ patientId: patient.id, data, sourceEventsCount: events.length, tokensUsed });
+    return res.json({ success: true, recit: data.recit, cached: false });
+  } catch (err) {
+    console.error('[ERROR journal-clinique]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors de la génération du journal clinique' });
   }
 });
 

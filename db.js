@@ -160,6 +160,19 @@ async function initDb() {
     );
   `);
 
+  // ── Le Journal Clinique (Sprint 18, espace MÉDECIN) ──
+  // Cache d'une ligne par patient : récit clinique en prose, régénéré quand
+  // le nombre d'événements du dossier change.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS clinical_journals (
+      patient_id UUID PRIMARY KEY REFERENCES patients(id) ON DELETE CASCADE,
+      data JSONB NOT NULL,
+      source_events_count INTEGER NOT NULL DEFAULT 0,
+      tokens_used INTEGER,
+      generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id UUID PRIMARY KEY,
@@ -599,6 +612,25 @@ async function savePatientParcours({ patientId, data, sourceEventsCount, tokensU
            source_events_count = EXCLUDED.source_events_count,
            tokens_used = EXCLUDED.tokens_used,
            generated_at = now()
+     RETURNING *`,
+    [patientId, JSON.stringify(data), sourceEventsCount, tokensUsed || null]
+  );
+  return result.rows[0];
+}
+
+// ── Le Journal Clinique (espace médecin, Sprint 18) ───────────────
+
+async function getClinicalJournal(patientId) {
+  const result = await pool.query(`SELECT * FROM clinical_journals WHERE patient_id = $1`, [patientId]);
+  return result.rows[0] || null;
+}
+async function saveClinicalJournal({ patientId, data, sourceEventsCount, tokensUsed }) {
+  const result = await pool.query(
+    `INSERT INTO clinical_journals (patient_id, data, source_events_count, tokens_used, generated_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (patient_id) DO UPDATE
+       SET data = EXCLUDED.data, source_events_count = EXCLUDED.source_events_count,
+           tokens_used = EXCLUDED.tokens_used, generated_at = now()
      RETURNING *`,
     [patientId, JSON.stringify(data), sourceEventsCount, tokensUsed || null]
   );
@@ -1091,6 +1123,8 @@ module.exports = {
   saveTimelineNarrative,
   getPatientParcours,
   savePatientParcours,
+  getClinicalJournal,
+  saveClinicalJournal,
   logAudit,
   // Sprint 6 — Cockpit, RDV, tâches, workspace, messagerie
   listEventsByMedecin,
