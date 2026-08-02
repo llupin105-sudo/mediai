@@ -547,6 +547,16 @@ app.get('/api/journal', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/admin/ai-stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const ai = await db.getAiStats();
+    return res.json({ ai });
+  } catch (err) {
+    console.error('[ERROR ai-stats]', req.requestId, err.message);
+    return res.status(500).json({ error: 'Erreur lors du calcul des stats IA' });
+  }
+});
+
 app.get('/api/admin/metrics', requireAuth, requireAdmin, async (req, res) => {
   try {
     const metrics = await db.getAdminMetrics();

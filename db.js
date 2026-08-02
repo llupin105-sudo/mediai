@@ -1014,6 +1014,30 @@ async function getJournalStats(medecinId) {
   return periods;
 }
 
+// ── Statistiques IA (Sprint 17 · Mission Control) ─────────────────
+// Agrège tokens_used RÉEL par source. Noms de tables constants (aucune
+// entrée utilisateur → pas d'injection). Une source sans colonne
+// tokens_used est simplement ignorée.
+async function getAiStats() {
+  const sources = [
+    ['medical_events', 'Documents générés'],
+    ['patient_synthesis', 'Synthèses de dossier'],
+    ['timeline_narratives', 'Récits de chronologie'],
+    ['patient_parcours', 'Parcours patient'],
+    ['cockpit_briefings', 'Briefings du cockpit'],
+  ];
+  const bySource = [];
+  let totalTokens = 0, totalCalls = 0;
+  for (const [table, label] of sources) {
+    try {
+      const r = await pool.query(`SELECT COUNT(*) FILTER (WHERE tokens_used IS NOT NULL)::int AS calls, COALESCE(SUM(tokens_used),0)::bigint AS tokens FROM ${table}`);
+      const calls = r.rows[0].calls, tokens = Number(r.rows[0].tokens);
+      if (calls > 0 || tokens > 0) { bySource.push({ source: label, calls, tokens }); totalCalls += calls; totalTokens += tokens; }
+    } catch (e) { /* table sans colonne tokens_used → ignorée */ }
+  }
+  return { totalTokens, totalCalls, bySource };
+}
+
 // ── Feature flags (Sprint 16) ─────────────────────────────────────
 async function getFlagOverrides() {
   const r = await pool.query(`SELECT key, enabled FROM feature_flags`);
@@ -1037,6 +1061,7 @@ module.exports = {
   initDb,
   getAdminMetrics,
   getJournalStats,
+  getAiStats,
   getFlagOverrides,
   setFlag,
   createUser,
