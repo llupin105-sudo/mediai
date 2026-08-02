@@ -273,6 +273,8 @@ async function initDb() {
     );
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id, created_at);`);
+  // Sprint 20 · Vague D — deux types de conversation : 'medical' (médecin) / 'admin' (secrétariat).
+  await pool.query(`ALTER TABLE message_threads ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'medical';`);
 
   // ── Cache du briefing IA du cockpit (Sprint 6) ───────────────────
   // Une ligne par médecin : récit + recommandations, régénérés quand la
@@ -856,12 +858,22 @@ async function listThreadsByPatient(patientId) {
   return result.rows;
 }
 
-async function createThread({ id, medecinId, patientId, subject }) {
+async function createThread({ id, medecinId, patientId, subject, category }) {
   const result = await pool.query(
-    `INSERT INTO message_threads (id, medecin_id, patient_id, subject) VALUES ($1,$2,$3,$4) RETURNING *`,
-    [id, medecinId, patientId, subject || '']
+    `INSERT INTO message_threads (id, medecin_id, patient_id, subject, category) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [id, medecinId, patientId, subject || '', category || 'medical']
   );
   return result.rows[0];
+}
+
+// Sprint 20 · Vague D — dernière conversation d'une catégorie pour un patient
+// (sert à regrouper les messages du patient plutôt que d'ouvrir un fil à chaque envoi).
+async function latestThreadByPatientCategory(patientId, category) {
+  const result = await pool.query(
+    `SELECT * FROM message_threads WHERE patient_id = $1 AND category = $2 ORDER BY last_message_at DESC LIMIT 1`,
+    [patientId, category]
+  );
+  return result.rows[0] || null;
 }
 
 async function listMessages(threadId) {
@@ -881,6 +893,14 @@ async function addMessage({ id, threadId, senderType, body }) {
 async function markThreadReadByMedecin(threadId) {
   await pool.query(
     `UPDATE messages SET read_by_medecin_at = now() WHERE thread_id = $1 AND sender_type='patient' AND read_by_medecin_at IS NULL`,
+    [threadId]
+  );
+}
+
+// Sprint 20 · Vague D — le patient marque comme lus les messages du médecin.
+async function markThreadReadByPatient(threadId) {
+  await pool.query(
+    `UPDATE messages SET read_by_patient_at = now() WHERE thread_id = $1 AND sender_type='medecin' AND read_by_patient_at IS NULL`,
     [threadId]
   );
 }
@@ -1149,6 +1169,8 @@ module.exports = {
   listAppointmentsByPatient,
   getThreadById,
   createThread,
+  latestThreadByPatientCategory,
+  markThreadReadByPatient,
   listMessages,
   addMessage,
   markThreadReadByMedecin,

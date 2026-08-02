@@ -2258,9 +2258,62 @@ app.get('/api/patient/threads/:id/messages', requirePatientAuth, async (req, res
       return res.status(404).json({ error: 'Conversation introuvable' });
     }
     const messages = await db.listMessages(thread.id);
+    await db.markThreadReadByPatient(thread.id); // l'ouverture vaut lecture
     return res.json({ thread, messages });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
+  }
+});
+
+// ── Sprint 20 · Vague D — le patient écrit (messagerie bidirectionnelle) ──
+// Deux catégories : 'medical' (au médecin) / 'admin' (au secrétariat). Les
+// messages sont regroupés dans le dernier fil de la catégorie, ou un nouveau
+// fil est créé, rattaché au médecin du patient. Aucune donnée inventée.
+app.post('/api/patient/threads', requirePatientAuth, async (req, res) => {
+  try {
+    const category = req.body && req.body.category === 'admin' ? 'admin' : 'medical';
+    const body = String((req.body && req.body.body) || '').trim();
+    if (!body) return res.status(400).json({ error: 'Message vide' });
+    let thread = await db.latestThreadByPatientCategory(req.patient.id, category);
+    if (!thread) {
+      const subject = String((req.body && req.body.subject) || '').trim().slice(0, 200)
+        || (category === 'admin' ? 'Secrétariat' : 'Votre médecin');
+      thread = await db.createThread({ id: crypto.randomUUID(), medecinId: req.patient.medecin_id, patientId: req.patient.id, subject, category });
+    }
+    const message = await db.addMessage({ id: crypto.randomUUID(), threadId: thread.id, senderType: 'patient', body: body.slice(0, 4000) });
+    return res.json({ success: true, thread, message });
+  } catch (err) {
+    console.error('[ERROR patient thread create]', req.requestId, err.message);
+    return res.status(500).json({ error: "Impossible d'envoyer le message" });
+  }
+});
+
+app.post('/api/patient/threads/:id/messages', requirePatientAuth, async (req, res) => {
+  try {
+    const thread = await db.getThreadById(req.params.id);
+    if (!thread || thread.patient_id !== req.patient.id) {
+      return res.status(404).json({ error: 'Conversation introuvable' });
+    }
+    const body = String((req.body && req.body.body) || '').trim();
+    if (!body) return res.status(400).json({ error: 'Message vide' });
+    const message = await db.addMessage({ id: crypto.randomUUID(), threadId: thread.id, senderType: 'patient', body: body.slice(0, 4000) });
+    return res.json({ success: true, message });
+  } catch (err) {
+    console.error('[ERROR patient message]', req.requestId, err.message);
+    return res.status(500).json({ error: "Impossible d'envoyer le message" });
+  }
+});
+
+app.post('/api/patient/threads/:id/read', requirePatientAuth, async (req, res) => {
+  try {
+    const thread = await db.getThreadById(req.params.id);
+    if (!thread || thread.patient_id !== req.patient.id) {
+      return res.status(404).json({ error: 'Conversation introuvable' });
+    }
+    await db.markThreadReadByPatient(thread.id);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur' });
   }
 });
 
