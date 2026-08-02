@@ -6,16 +6,17 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ## [Non publié] — Sprint 19 · Trust & Polish — 2026-08-02
 
-Sprint 100 % qualité & crédibilité de marque (aucune fonctionnalité métier). Site `mediai-site`. *(Structure & crédibilité livrées ; polish pixel/tarifs = suite dédiée.)*
+Sprint 100 % qualité & crédibilité de marque (aucune fonctionnalité métier). Site `mediai-site`.
 
-- **Phase 1 · Logo & favicon** : logo officiel recréé en **SVG vectoriel** (`/logo.svg`, transparent, net, swap-ready) — header/footer de la landing + **favicon sur toutes les pages** (app, patient, admin, trust, marketing). *(Wordmark conservé « MediAI » — le logo fourni indiquait « MédiAI » ; à confirmer si renommage souhaité.)*
-- **Phase 2 · Navigation** épurée (Produit · Tarifs · Ressources · Entreprise + « Demander un accès »).
-- **Phases 6-9 · Pages** : footer refondu en 4 colonnes vers de **vraies pages** ; création de **/entreprise** (mission/vision/valeurs/contact/presse), **/ressources** (comment ça marche/FAQ/sécurité/nouveautés), **/legal** (mentions/confidentialité/CGU/cookies — honnête, sans inventer d'identifiants juridiques). Sur `site.css` partagé.
+- **Phase 1 · Logo & favicon** : logo officiel recréé en **SVG vectoriel** (`/logo.svg`, transparent, net, swap-ready) — header/footer de la landing + **favicon sur toutes les pages** (app, patient, admin, trust, marketing) ; brand `trust.html` migré du carré ✦ vers le logo. *(Wordmark conservé « MediAI » — le logo fourni indiquait « MédiAI » ; à confirmer si renommage souhaité.)*
+- **Phase 2 · Navigation** : nav **5 items unifiée** sur toutes les pages (Produit · Fonctionnalités · Tarifs · Ressources · Entreprise + « Demander un accès »). « Fonctionnalités » pointe vers la démo `/#essayer` (fin du doublon avec « Produit » → `/#comment`).
+- **Phase 3 · Alignement** : étoile « Nous simplifions le quotidien » (chemin SVG asymétrique) **recentrée** (tracé symétrique).
+- **Phase 4 · Tarifs façon Apple** : cartes plus respirantes (gap 22px, padding 32/26px), **un seul CTA bleu dominant** (Pro, le plan populaire) — « Commencer gratuitement » passe en soft ; CTA Enterprise « Sur devis » → **/enterprise** (page devis). 4 cartes hauteur identique, CTA alignés en bas et pleine largeur (vérifié DOM).
 - **Phase 5 · Enterprise** : page **/enterprise** (formulaire de devis complet) + endpoint **`POST /api/enterprise-quote`** (Resend → contactmediaifr@gmail.com, isolé et remplaçable par un CRM ; anti-spam ; aucune donnée patient).
-- **Phase 10 (partiel) · Liens morts** : **tous** les `#footer` morts corrigés (0 restant), lien « Nous contacter » → /entreprise#contact.
+- **Phases 6-9 · Pages** : footer refondu en 4 colonnes vers de **vraies pages** ; création de **/entreprise** (mission/vision/valeurs/contact/presse), **/ressources** (comment ça marche/FAQ/sécurité/nouveautés), **/legal** (mentions/confidentialité/CGU/cookies — honnête, sans inventer d'identifiants juridiques). Sur `site.css` partagé.
+- **Phase 10 · Audit liens** : **tous** les `#footer` morts corrigés (0 restant) ; audit complet des `href` sur les 9 pages — toutes les ancres cibles vérifiées (ressources/legal/entreprise), aucune route morte (`cleanUrls`).
 - **Phase 11 · SEO** : favicon SVG, données structurées **Organization** (JSON-LD), meta/OG cohérents par page.
-- **Phase 3 (nommé) · Alignement** : étoile « Nous simplifions le quotidien » (chemin SVG asymétrique) **recentrée**.
-- **Reste (suite dédiée)** : audit pixel exhaustif (Phase 3/12), refonte des cartes tarifaires « façon Apple » (Phase 4), audit global liens/responsive/perf (Phase 10).
+- **Reste** : passe visuelle pixel sur le déploiement live (pane navigateur throttlé en session — layout tarifs validé par mesure DOM) ; décision wordmark MediAI/MédiAI.
 
 ## [Non publié] — Sprint 18 · Zero Click Medicine — 2026-08-02
 
