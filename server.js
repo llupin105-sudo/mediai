@@ -36,7 +36,7 @@ const cockpit = require('./cockpit');
 // Changer de fournisseur IA / transcription / email = modifier 1 fichier.
 const { callClaude } = require('./services/ia');
 const { transcribeAudio } = require('./services/transcription');
-const { sendReportEmail, sendPasswordResetEmail } = require('./services/email');
+const { sendReportEmail, sendPasswordResetEmail, sendEnterpriseQuoteEmail } = require('./services/email');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -516,6 +516,37 @@ app.get('/api/flags', async (req, res) => {
     return res.json({ flags });
   } catch (err) {
     return res.status(500).json({ error: 'Erreur lors de la lecture des flags' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/enterprise-quote  (Sprint 19 · Demande de devis, public)
+// Envoie le récapitulatif du formulaire à l'adresse commerciale (Resend).
+// Aucune donnée patient. Limité (authLimiter) pour éviter le spam.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/enterprise-quote', authLimiter, async (req, res) => {
+  const b = req.body || {};
+  const clean = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 200);
+  const quote = {
+    prenom: clean(b.prenom, 80), nom: clean(b.nom, 80), email: clean(b.email, 160),
+    telephone: clean(b.telephone, 40), cabinet: clean(b.cabinet, 160), ville: clean(b.ville, 80),
+    pays: clean(b.pays, 80), nb_medecins: clean(b.nb_medecins, 20), nb_secretaires: clean(b.nb_secretaires, 20),
+    nb_patients: clean(b.nb_patients, 40), logiciel: clean(b.logiciel, 120), message: clean(b.message, 3000),
+  };
+  if (!quote.prenom || !quote.nom || !quote.cabinet || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(quote.email)) {
+    return res.status(400).json({ error: 'Merci de renseigner au moins prénom, nom, e-mail valide et structure.' });
+  }
+  try {
+    await sendEnterpriseQuoteEmail(quote);
+    return res.json({ success: true });
+  } catch (err) {
+    if (err.code === 'NOT_CONFIGURED') {
+      console.error('[enterprise-quote] Resend non configuré — demande reçue mais non envoyée :', quote.email);
+      // On ne bloque pas l'utilisateur : la demande est journalisée pour reprise manuelle.
+      return res.json({ success: true, queued: true });
+    }
+    console.error('[ERROR enterprise-quote]', req.requestId, err.message);
+    return res.status(500).json({ error: "L'envoi a échoué. Réessayez ou écrivez à contactmediaifr@gmail.com." });
   }
 });
 

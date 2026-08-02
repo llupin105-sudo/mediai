@@ -99,4 +99,47 @@ async function sendPasswordResetEmail({ recipientEmail, resetUrl }) {
   return true;
 }
 
-module.exports = { sendReportEmail, sendPasswordResetEmail };
+/**
+ * Demande de devis Enterprise (Sprint 19). Envoie le récapitulatif du
+ * formulaire à l'adresse commerciale. Aucune donnée patient : uniquement les
+ * coordonnées de la structure. Point d'isolation : remplaçable par un CRM.
+ * @throws {Error} err.code === 'NOT_CONFIGURED' si le service n'est pas configuré
+ */
+async function sendEnterpriseQuoteEmail(quote) {
+  if (!process.env.RESEND_API_KEY) {
+    const err = new Error("Envoi d'email non configuré côté serveur");
+    err.code = 'NOT_CONFIGURED';
+    throw err;
+  }
+  const to = process.env.QUOTE_RECIPIENT || 'contactmediaifr@gmail.com';
+  const fromAddress = process.env.EMAIL_FROM || 'MediAI <onboarding@resend.dev>';
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const row = (k, v) => `<tr><td style="padding:6px 12px;color:#5B6472;font-weight:600;white-space:nowrap;">${k}</td><td style="padding:6px 12px;color:#101828;">${esc(v) || '—'}</td></tr>`;
+  const html = `
+    <div style="font-family:sans-serif;color:#101828;max-width:560px;">
+      <h2 style="margin:0 0 4px;">Nouvelle demande de devis — MediAI Enterprise</h2>
+      <p style="color:#5B6472;font-size:13px;margin:0 0 16px;">Reçue le ${new Date().toLocaleString('fr-FR')}</p>
+      <table style="border-collapse:collapse;font-size:14px;">
+        ${row('Contact', `${quote.prenom || ''} ${quote.nom || ''}`.trim())}
+        ${row('E-mail', quote.email)}
+        ${row('Téléphone', quote.telephone)}
+        ${row('Structure', quote.cabinet)}
+        ${row('Ville / Pays', `${quote.ville || ''} ${quote.pays ? '— ' + quote.pays : ''}`.trim())}
+        ${row('Médecins', quote.nb_medecins)}
+        ${row('Secrétaires', quote.nb_secretaires)}
+        ${row('Patients (approx.)', quote.nb_patients)}
+        ${row('Logiciel actuel', quote.logiciel)}
+      </table>
+      <p style="margin:16px 0 4px;font-weight:600;">Message</p>
+      <p style="white-space:pre-wrap;font-size:14px;color:#101828;">${esc(quote.message) || '—'}</p>
+    </div>`;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: fromAddress, to: [to], reply_to: quote.email || undefined, subject: `Devis Enterprise — ${quote.cabinet || 'Structure'} (${quote.prenom || ''} ${quote.nom || ''})`.trim(), html }),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Erreur d'envoi Resend (${res.status}) ${t}`); }
+  return true;
+}
+
+module.exports = { sendReportEmail, sendPasswordResetEmail, sendEnterpriseQuoteEmail };
