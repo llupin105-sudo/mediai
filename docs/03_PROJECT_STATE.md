@@ -2,8 +2,8 @@
 
 > **État vivant du projet.** À mettre à jour à la fin de chaque session de travail significative. C'est le fichier qu'on lit pour savoir « où on en est ».
 
-**Version produit :** V1 (qualité commercialisable — Sprint 9 ; UX refondue — Sprints 10-11 ; copilote clinique — Sprint 12 ; app patient autonome — Sprint 15 ; maturité produit/plateforme — Sprint 16)
-**Dernière consolidation :** 2026-08-01 (Sprint 16 — Project Renaissance, complet)
+**Version produit :** V1 (qualité commercialisable — Sprint 9 ; UX refondue — Sprints 10-11 ; copilote clinique — Sprint 12 ; app patient autonome — Sprint 15 ; maturité produit/plateforme — Sprint 16 ; clinique intelligente — Sprint 17)
+**Dernière consolidation :** 2026-08-02 (Sprint 17 — The Intelligent Clinic, complet)
 
 > ⚙️ **Config à faire (Sprint 16)** : définir `ADMIN_EMAILS` dans l'environnement Render pour ouvrir l'accès au Command Center (`/admin`).
 
@@ -58,6 +58,8 @@
 - 🔄 **Sprint 3 — Ambient AI Consultation** : **3.1 livré** (panneau « Consultation prête » : ordonnance/courrier en un clic, suites, constantes). **3.2 livré** (carte « Évolution des constantes » dans le Cockpit : sparklines tension/poids/pouls/temp/SpO₂ lues sur les consultations, 100 % déterministe — clôt le point 4 du Cockpit). Restant : tâches de suivi persistantes, polish enregistrement vocal.
 - 🔄 **Sprint 4 — Signaux & alertes proactifs** (pilier « détecter ») : **4.1 livré** — moteur de détection déterministe (`computePatientSignals`), carte « Signaux détectés » en tête du Cockpit + panneau « Signaux cliniques » transversal sur le dashboard. 100 % déterministe (aucune IA, observations factuelles « à vérifier »). Restant : interactions sur tout le dossier, tendances de constantes, seuils réglables.
 - ⏭️ Différenciation patient · signaux avancés. → [11_ROADMAP.md](11_ROADMAP.md).
+
+**⭐ En production (2026-08-02)** — **Sprint 17 · The Intelligent Clinic** (complet, posture CPO+CTO) : MediAI travaille pour le médecin. **Vague A** — ⭐ **Copilote omniprésent** (FAB + ⌘J partout ; mode cockpit déterministe « prépare ma journée » + mode dossier IA ; unifie l'existant). **Vague B** — **Journal du cabinet** (`/api/journal`, activité réelle + temps gagné en estimation transparente) + **Quick Actions** patient. **Vague C** — **Health Graph** (carte mentale du dossier, déterministe) ; Smart Calendar/extraction servis par l'existant. **Vague D** — ⭐ **Mission Control** (stats IA réelles via `tokens_used`, `/api/admin/ai-stats`) + Patient Companion (digest) + workspace adaptatif. Audit préalable ([18_SPRINT17_INTELLIGENT_CLINIC](18_SPRINT17_INTELLIGENT_CLINIC.md)) : ~60 % existait déjà → élevé/unifié plutôt que reconstruit (règle #4). Transparence tenue (estimation étiquetée, jamais de faux chiffre). → [CHANGELOG.md](CHANGELOG.md).
 
 **⭐ En production (2026-08-01)** — **Sprint 16 · Project Renaissance** (complet, posture CTO) : passage d'un excellent prototype à un **produit** pensé pour durer. **Vague 0** — Design System v2 (`tokens.css` source unique des 3 frontends, `--sage` supprimé, bug `--bg-secondary` corrigé, a11y AA de base). **Vague 1** — Trust Center honnête (`/trust`, FR/EN), mécanisme i18n, **feature flags sans redéploiement** (`/api/flags` + admin), shell du **Command Center** (`/admin`). **Vague 2** — **moteur de notifications** partagé (priorité/dédup/non-lus), cartographie de navigation (règle des 2 clics), **ADR** (plugins/observabilité/analytics restent au stade doc+hooks). **Vague 3** — Command Center complet : **métriques réelles** (`/api/admin/metrics`, agrégats sans donnée perso), entrée sidebar médecin gated `isAdmin`+flag. Transparence non négociable tenue partout (jamais « HDS conforme », jamais de chiffre inventé). Docs : [15_SPRINT16_RENAISSANCE](15_SPRINT16_RENAISSANCE.md), [16_NAVIGATION](16_NAVIGATION.md), [17_ADR](17_ADR.md). → [CHANGELOG.md](CHANGELOG.md).
 

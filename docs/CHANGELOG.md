@@ -6,13 +6,23 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ## [Non publié] — Sprint 17 · The Intelligent Clinic — 2026-08-01
 
-MediAI n'attend plus, il **travaille pour le médecin**. Posture CPO + CTO. Audit préalable ([18_SPRINT17_INTELLIGENT_CLINIC.md](18_SPRINT17_INTELLIGENT_CLINIC.md)) : **~60 % du cahier existait déjà** (Copilote, signaux prédictifs, Smart Timeline, pré-consult, dossier vivant) — décision de CPO d'**élever/unifier** plutôt que reconstruire (règle #4). Conflits signalés et résolus honnêtement (temps gagné = estimation transparente ; PDF = périmètre synthétique ; mobile = passe responsive réaliste). *(Sprint en cours — Vagues A et B livrées.)*
+MediAI n'attend plus, il **travaille pour le médecin**. Posture CPO + CTO. Audit préalable ([18_SPRINT17_INTELLIGENT_CLINIC.md](18_SPRINT17_INTELLIGENT_CLINIC.md)) : **~60 % du cahier existait déjà** (Copilote, signaux prédictifs, Smart Timeline, pré-consult, dossier vivant) — décision de CPO d'**élever/unifier** plutôt que reconstruire (règle #4). Conflits signalés et résolus honnêtement (temps gagné = estimation transparente ; PDF = périmètre synthétique ; mobile = passe responsive réaliste). **Sprint complet — 4 vagues livrées.**
 
 **Vague A — ⭐ Copilote omniprésent.** Unifie le Copilote dossier (IA) et l'Assistant dashboard (déterministe) en **un** copilote joignable partout : lanceur flottant + **⌘J** sur toutes les vues. Mode **cockpit** (hors dossier) → exploitation de la journée en déterministe instantané (« prépare mon après-midi », examens arrivés, renouvellements, priorités) ; mode **dossier** → IA anonymisée. Badge « IA · à vérifier » partout. Aucune nouvelle dépendance backend.
 
 **Vague B — Temps & friction.**
 - **Journal du cabinet** (nouvelle vue) : « Ce que MediAI a fait pour vous » — activité **réelle** par période (jour/7j/30j, `GET /api/journal` sur `medical_events`) + **temps gagné en estimation transparente** (hypothèses minutes/type affichées, étiqueté « non mesuré »).
 - **Quick Actions** : menu rapide sur la carte patient (Ouvrir · ✦ Demander au Copilote · Préparer) — agir sans ouvrir le dossier ; « Demander au Copilote » ouvre dossier + Copilote en un geste.
+
+**Vague C — Intelligence visuelle.**
+- **Health Graph** (bouton « 🗺️ Graphe » du dossier) : carte mentale radiale — patient au centre, branches par type (consultations, ordonnances, analyses, imagerie, courriers, traitements) reliées, avec éléments récents. 100 % déterministe, « aide à la lecture, jamais un avis médical ». Repli mobile en colonne.
+- **Smart Calendar & extraction documentaire** : servis par l'existant (`PRE_CONSULT_PROMPT`, `LAB_/IMAGING_STRUCTURING_PROMPT`) — non reconstruits (règle #4) ; l'import « n'importe quel PDF » reste hors périmètre tant que l'infra n'est pas HDS.
+
+**Vague D — Cockpit & companion.**
+- **⭐ Mission Control** : le Command Center devient Mission Control — section **« Intelligence artificielle · usage réel »** (tokens consommés, appels IA, répartition par source) via `GET /api/admin/ai-stats` (agrégats **réels** de `tokens_used`, aucune donnée personnelle) + rafraîchissement léger de la santé système. Entrée sidebar médecin renommée.
+- **Patient Companion** : digest du jour en une phrase humaine sur l'accueil patient (traitement / prochain RDV / nouveau document), faits réels, sans interprétation.
+- **Workspace adaptatif** : indice contextuel selon l'heure sur le tableau de bord médecin (matin/après-midi/soir).
+- **Responsive médecin** : passe complète notée comme chantier dédié (l'app conserve ses points de rupture existants) — pas de fausse promesse de parité.
 
 ## [Non publié] — Sprint 16 · Project Renaissance — 2026-08-01
 
