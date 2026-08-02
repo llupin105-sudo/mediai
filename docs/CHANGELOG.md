@@ -8,7 +8,7 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 Sprint 100 % qualité & crédibilité de marque (aucune fonctionnalité métier). Site `mediai-site`.
 
-- **Phase 1 · Logo & favicon** : logo officiel recréé en **SVG vectoriel** (`/logo.svg`, transparent, net, swap-ready) — header/footer de la landing + **favicon sur toutes les pages** (app, patient, admin, trust, marketing) ; brand `trust.html` migré du carré ✦ vers le logo. *(Wordmark conservé « MediAI » — le logo fourni indiquait « MédiAI » ; à confirmer si renommage souhaité.)*
+- **Phase 1 · Logo & favicon** : logo officiel recréé en **SVG vectoriel** (`/logo.svg`, transparent, net, swap-ready) — header/footer de la landing + **favicon sur toutes les pages** (app, patient, admin, trust, marketing) ; brand `trust.html` migré du carré ✦ vers le logo. *(Wordmark **« MediAI » sans accent — décision confirmée** ; le logo fourni portait « MédiAI » mais on conserve la graphie du domaine/produit.)*
 - **Phase 2 · Navigation** : nav **5 items unifiée** sur toutes les pages (Produit · Fonctionnalités · Tarifs · Ressources · Entreprise + « Demander un accès »). « Fonctionnalités » pointe vers la démo `/#essayer` (fin du doublon avec « Produit » → `/#comment`).
 - **Phase 3 · Alignement** : étoile « Nous simplifions le quotidien » (chemin SVG asymétrique) **recentrée** (tracé symétrique).
 - **Phase 4 · Tarifs façon Apple** : cartes plus respirantes (gap 22px, padding 32/26px), **un seul CTA bleu dominant** (Pro, le plan populaire) — « Commencer gratuitement » passe en soft ; CTA Enterprise « Sur devis » → **/enterprise** (page devis). 4 cartes hauteur identique, CTA alignés en bas et pleine largeur (vérifié DOM).
