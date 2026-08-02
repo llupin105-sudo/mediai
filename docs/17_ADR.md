@@ -74,6 +74,20 @@ Statuts : `accepté` · `proposé` · `remplacé`.
 
 **Décision.** S'appuyer sur l'existant (`LAB_STRUCTURING_PROMPT`, `IMAGING_STRUCTURING_PROMPT`) pour l'extraction structurée sur **saisie/texte**. L'OCR « tout PDF » est reporté : fiabilité variable en stack vanilla **et** vrais fichiers patients = HDS. **Révision** : post-HDS, avec un moteur OCR auto-hébergé (cf. point Whisper de la [roadmap conformité](10_SECURITY.md)).
 
+## ADR-009 — Journal Santé & Check-in patient : démo locale avant HDS
+**Date :** 2026-08-02 · **Statut :** accepté
+
+**Contexte.** Sprint 20 (Phases 15/13) : le patient consigne son humeur/ressenti quotidien (Journal Santé) et un auto-bilan avant consultation (Check-in : douleur, fatigue, sommeil, constantes, photos). Ce sont des **données de santé sensibles**, et l'auto-suivi longitudinal du ressenti est une forte valeur produit.
+
+**Décision.** Livrer l'expérience complète mais **stockée uniquement sur l'appareil** (`localStorage` : `mediai_pt_journal`, `mediai_pt_checkin`), jamais persistée côté serveur. La transmission au médecin est **explicite et à l'initiative du patient** : le Check-in part comme message dans la messagerie sécurisée existante (le patient agit sur ses propres données). **Photos** du check-in : non implémentées (upload d'images patient = HDS). **Révision — post-HDS** : table serveur dédiée + vue médecin de l'évolution du ressenti ; c'est la règle d'or conformité qui gouverne ce report ([10_SECURITY.md](10_SECURITY.md)).
+
+## ADR-010 — Mode Famille : sélecteur de profils d'abord, comptes liés en chantier dédié
+**Date :** 2026-08-02 · **Statut :** accepté
+
+**Contexte.** Sprint 20 (Phase 11) : gérer la santé de ses proches (enfant, parent, conjoint), bascule de profil « façon Apple Family ». Chantier lourd : comptes liés, invitations, permissions, **consentement**, et **protection renforcée des données de mineurs** (RGPD).
+
+**Décision.** Livrer d'abord l'**UX du sélecteur de profils** avec des profils de proches **clairement marqués « Démo »** (aucune vraie donnée d'un tiers) — l'expérience visuelle est complète, le concept est démontrable. Le vrai système multi-comptes (data model, invitations, consentement, cloisonnement par profil, cas des mineurs) est un **chantier data + juridique dédié**, hors d'un sprint UX et à cadrer avec la conformité. **Révision** : sprint dédié après HDS.
+
 ## ADR-004 — Design tokens : source unique partagée (rappel)
 **Date :** 2026-08-01 · **Statut :** accepté
 
