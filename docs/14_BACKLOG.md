@@ -39,6 +39,7 @@ Légende priorité : 🔴 élevée · 🟠 moyenne · 🟢 faible.
 | 27 | 🟢 | Normes de référence labo manquantes | Résultats patient reportent `valeurs_reference` uniquement si le labo les fournit. Sans base de normes, pas d'aide à la lecture — à ne PAS inventer (règle d'or). |
 | 28 | 🟢 | `patient.html` monofichier (~1500 lignes) | A bien grossi au Sprint 15 (13 vues + IA). Extraction en modules ES (sans build) à envisager si la vélocité baisse. |
 | 29 | 🟠 | Réconciliation `:root` patient/landing sur `tokens.css` | Sprint 16 : `app.html` consomme entièrement la source unique ; `patient.html` et `index.html` gardent un `:root` local (rayons doux patient, fond blanc landing). Terminer la migration avec diff visuel par surface. → [tokens.css](../../mediai-site/tokens.css). |
+| 30 | 🟠 | Préchargement intelligent des dossiers (Sprint 18) | Vague C : ouvrir un dossier fréquent devrait être instantané (cache mémoire + prefetch au survol). Modifie `openPatientDetail` (chemin critique, app médecin) → incrément dédié avec tests, non bâclé en fin de sprint. |
 
 ---
 

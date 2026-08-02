@@ -17,6 +17,11 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 - **Focus Mode « Terminer → patient suivant »** : le Mode Consultation enchaîne automatiquement sur le patient suivant de la file (sans retour manuel) ; fin de file → sortie auto.
 - **Consultation Snapshot** : fiche visuelle de la dernière consultation (diagnostic, traitement, suivi, durée si présente, constantes), déterministe, champs jamais inventés.
 
+**Vague C — Zéro perte, zéro friction.**
+- **Auto-save universel** (`MediaiAutosave`) : tout champ `[data-autosave]` sauvegarde son brouillon en continu et le restaure s'il est vide. Branché sur la dictée de consultation (restauration à l'ouverture, effacement après génération). « Plus jamais un texte perdu. »
+- **Dossier Patient 2.0 — bandeau fixe** : infos vitales sticky en tête du dossier (nom, âge, traitements, allergies si trouvées, dernière consultation, « Vigilance élevée »). Uniquement le réel — contact/urgence non stockés → non affichés.
+- **Préchargement intelligent** : reporté en incrément dédié (modifie le chemin critique d'ouverture du dossier — à tester finement). → backlog.
+
 ## [Non publié] — Sprint 17 · The Intelligent Clinic — 2026-08-01
 
 MediAI n'attend plus, il **travaille pour le médecin**. Posture CPO + CTO. Audit préalable ([18_SPRINT17_INTELLIGENT_CLINIC.md](18_SPRINT17_INTELLIGENT_CLINIC.md)) : **~60 % du cahier existait déjà** (Copilote, signaux prédictifs, Smart Timeline, pré-consult, dossier vivant) — décision de CPO d'**élever/unifier** plutôt que reconstruire (règle #4). Conflits signalés et résolus honnêtement (temps gagné = estimation transparente ; PDF = périmètre synthétique ; mobile = passe responsive réaliste). **Sprint complet — 4 vagues livrées.**
