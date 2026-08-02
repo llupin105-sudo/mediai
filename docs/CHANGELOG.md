@@ -6,7 +6,7 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ## [Non publié] — Sprint 18 · Zero Click Medicine — 2026-08-02
 
-« Le meilleur clic est celui qui n'existe plus. » MediAI prépare, organise et simplifie *avant* que le médecin n'agisse. Posture CPO + CTO. Audit préalable ([19_SPRINT18_ZERO_CLICK.md](19_SPRINT18_ZERO_CLICK.md)) : **~50 % du cahier existait déjà** (Focus Mode, Centre d'actions, timeline-narrative) → élevé/unifié plutôt que reconstruit (règle #4). Conflits signalés et résolus honnêtement (salle d'attente/multi-fenêtres/workspace/OCR → alternatives légères + ADR ; vraies données patient hors HDS refusées). *(Sprint en cours — Vagues A et B livrées.)*
+« Le meilleur clic est celui qui n'existe plus. » MediAI prépare, organise et simplifie *avant* que le médecin n'agisse. Posture CPO + CTO. Audit préalable ([19_SPRINT18_ZERO_CLICK.md](19_SPRINT18_ZERO_CLICK.md)) : **~50 % du cahier existait déjà** (Focus Mode, Centre d'actions, timeline-narrative) → élevé/unifié plutôt que reconstruit (règle #4). Conflits signalés et résolus honnêtement (salle d'attente/multi-fenêtres/workspace/OCR → alternatives légères + ADR ; vraies données patient hors HDS refusées). **Sprint complet — 4 vagues livrées.**
 
 **Vague A — Intelligence du dossier.**
 - **⭐ Le Journal Clinique** : l'histoire du patient **en prose** (médecin), qui remplace la relecture de dizaines de comptes-rendus. Nouvel endpoint `GET /api/patients/:id/journal-clinique` (`CLINICAL_JOURNAL_PROMPT`, anonymisé avant/après, cache `clinical_journals`). Bouton « 📖 Journal clinique » du dossier → récit + **export Copier / Télécharger / Régénérer**. Badge « IA · à vérifier ».
@@ -20,7 +20,13 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 **Vague C — Zéro perte, zéro friction.**
 - **Auto-save universel** (`MediaiAutosave`) : tout champ `[data-autosave]` sauvegarde son brouillon en continu et le restaure s'il est vide. Branché sur la dictée de consultation (restauration à l'ouverture, effacement après génération). « Plus jamais un texte perdu. »
 - **Dossier Patient 2.0 — bandeau fixe** : infos vitales sticky en tête du dossier (nom, âge, traitements, allergies si trouvées, dernière consultation, « Vigilance élevée »). Uniquement le réel — contact/urgence non stockés → non affichés.
-- **Préchargement intelligent** : reporté en incrément dédié (modifie le chemin critique d'ouverture du dossier — à tester finement). → backlog.
+- **Préchargement intelligent** : reporté en incrément dédié (modifie le chemin critique d'ouverture du dossier — à tester finement). → backlog #30.
+
+**Vague D — Langage & entrée.**
+- **Langage couleur sémantique** formalisé (bleu info · vert terminé · orange à vérifier · rouge urgent · violet IA) — appliqué (AI Inbox, Smart Queue, bandeau patient) et documenté ([04_DESIGN_SYSTEM.md](04_DESIGN_SYSTEM.md)).
+- **MediAI Early Access** : section landing (programme fondateur, 100 places, perks + CTA vers le flux d'accès) — honnête (« données synthétiques tant que pas HDS » ; Discord/tarif/vote = décisions ops, non simulés).
+- **ADR** : salle d'attente (texte, pas de photos, pré-HDS), multi-fenêtres (bascule récents/épinglés), workspace (masquer/réordonner, pas de drag-drop), documents intelligents (extraction structurée, OCR différé). → [17_ADR.md](17_ADR.md).
+- **Barre supérieure** : déjà intelligente (recherche ⌘K · notifications · Copilote ⌘J · Journal « temps gagné ») → consolidation documentée, pas de refonte risquée du topbar.
 
 ## [Non publié] — Sprint 17 · The Intelligent Clinic — 2026-08-01
 

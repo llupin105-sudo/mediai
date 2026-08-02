@@ -8,6 +8,20 @@
 
 Identité actuelle : **claire, bleue, sans-serif intégral**, densité type Linear, chaleur type Notion. Le pivot vers le bleu (juillet 2026, chantier `phase-1bis-ui`) remplace l'ancienne piste « marine/sage/vert ». **Le token legacy `--sage*` a été supprimé (Sprint 16) au profit de `--accent*`.**
 
+### Langage couleur sémantique (Sprint 18)
+
+La couleur **communique**, elle ne décore pas. Cinq intentions, appliquées de façon cohérente (AI Inbox, Smart Queue, bandeau patient, badges IA…) :
+
+| Couleur | Token | Sens | Exemples |
+|---|---|---|---|
+| 🔵 Bleu | `--blue` | **Information / action** | liens, actions primaires, renouvellements |
+| 🟢 Vert | `--green` | **Terminé / OK** | « traité », consultation simple, « Terminer » |
+| 🟠 Orange | `--amber` | **À vérifier / à surveiller** | résultat à vérifier, consultation à surveiller |
+| 🔴 Rouge | `--rose`/`--red` | **Urgent / critique** | signal important, consultation complexe, vigilance élevée |
+| 🟣 Violet | `--violet` | **IA** | Copilote, badges « ✦ IA · à vérifier », récits |
+
+Règle : une couleur d'alerte (orange/rouge) n'est utilisée **que** si un fait déterministe la justifie — jamais décorative.
+
 ---
 
 ## 1. Couleurs

@@ -2,8 +2,8 @@
 
 > **État vivant du projet.** À mettre à jour à la fin de chaque session de travail significative. C'est le fichier qu'on lit pour savoir « où on en est ».
 
-**Version produit :** V1 (qualité commercialisable — Sprint 9 ; UX refondue — Sprints 10-11 ; copilote clinique — Sprint 12 ; app patient autonome — Sprint 15 ; maturité produit/plateforme — Sprint 16 ; clinique intelligente — Sprint 17)
-**Dernière consolidation :** 2026-08-02 (Sprint 17 — The Intelligent Clinic, complet)
+**Version produit :** V1 (qualité commercialisable — Sprint 9 ; UX refondue — Sprints 10-11 ; copilote clinique — Sprint 12 ; app patient autonome — Sprint 15 ; maturité produit/plateforme — Sprint 16 ; clinique intelligente — Sprint 17 ; zero-click — Sprint 18)
+**Dernière consolidation :** 2026-08-02 (Sprint 18 — Zero Click Medicine, complet)
 
 > ⚙️ **Config à faire (Sprint 16)** : définir `ADMIN_EMAILS` dans l'environnement Render pour ouvrir l'accès au Command Center (`/admin`).
 
@@ -58,6 +58,8 @@
 - 🔄 **Sprint 3 — Ambient AI Consultation** : **3.1 livré** (panneau « Consultation prête » : ordonnance/courrier en un clic, suites, constantes). **3.2 livré** (carte « Évolution des constantes » dans le Cockpit : sparklines tension/poids/pouls/temp/SpO₂ lues sur les consultations, 100 % déterministe — clôt le point 4 du Cockpit). Restant : tâches de suivi persistantes, polish enregistrement vocal.
 - 🔄 **Sprint 4 — Signaux & alertes proactifs** (pilier « détecter ») : **4.1 livré** — moteur de détection déterministe (`computePatientSignals`), carte « Signaux détectés » en tête du Cockpit + panneau « Signaux cliniques » transversal sur le dashboard. 100 % déterministe (aucune IA, observations factuelles « à vérifier »). Restant : interactions sur tout le dossier, tendances de constantes, seuils réglables.
 - ⏭️ Différenciation patient · signaux avancés. → [11_ROADMAP.md](11_ROADMAP.md).
+
+**⭐ En production (2026-08-02)** — **Sprint 18 · Zero Click Medicine** (complet, posture CPO+CTO) : « le meilleur clic est celui qui n'existe plus ». **A** — ⭐ **Le Journal Clinique** (récit prose exportable, `GET /api/patients/:id/journal-clinique`) + **AI Inbox** (boîte à vider). **B** — **Smart Queue** (file du jour colorée) + **Focus Mode « Terminer → suivant »** (enchaînement auto) + **Consultation Snapshot**. **C** — **Auto-save universel** (`MediaiAutosave`) + **Dossier 2.0 bandeau fixe** ; préchargement → backlog #30. **D** — langage couleur sémantique + **Early Access** (landing) + **ADR** (salle d'attente/multi-fenêtres/workspace/OCR). ~50 % existait déjà → élevé, pas reconstruit (règle #4). Transparence tenue. → [CHANGELOG.md](CHANGELOG.md).
 
 **⭐ En production (2026-08-02)** — **Sprint 17 · The Intelligent Clinic** (complet, posture CPO+CTO) : MediAI travaille pour le médecin. **Vague A** — ⭐ **Copilote omniprésent** (FAB + ⌘J partout ; mode cockpit déterministe « prépare ma journée » + mode dossier IA ; unifie l'existant). **Vague B** — **Journal du cabinet** (`/api/journal`, activité réelle + temps gagné en estimation transparente) + **Quick Actions** patient. **Vague C** — **Health Graph** (carte mentale du dossier, déterministe) ; Smart Calendar/extraction servis par l'existant. **Vague D** — ⭐ **Mission Control** (stats IA réelles via `tokens_used`, `/api/admin/ai-stats`) + Patient Companion (digest) + workspace adaptatif. Audit préalable ([18_SPRINT17_INTELLIGENT_CLINIC](18_SPRINT17_INTELLIGENT_CLINIC.md)) : ~60 % existait déjà → élevé/unifié plutôt que reconstruit (règle #4). Transparence tenue (estimation étiquetée, jamais de faux chiffre). → [CHANGELOG.md](CHANGELOG.md).
 

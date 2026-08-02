@@ -46,6 +46,34 @@ Statuts : `accepté` · `proposé` · `remplacé`.
 
 ---
 
+## ADR-005 — Salle d'attente patient : questionnaire texte, pas de photos, avant HDS
+**Date :** 2026-08-02 · **Statut :** accepté
+
+**Contexte.** Sprint 18 imagine un « Mode Salle d'Attente » où le patient renseigne douleur/évolution/symptômes/**photos/documents** avant la consultation, intégrés au dossier.
+
+**Décision.** Reporter la version complète. Les **photos et documents patients = vraies données de santé, interdites tant que l'infra n'est pas HDS** ([10_SECURITY.md](10_SECURITY.md)). Cible : un questionnaire **texte structuré** (motif, depuis quand, intensité) rattaché au RDV, sur données synthétiques ; l'upload de fichiers patients attend l'agrément HDS. **Conséquence** : on ne collecte aucune donnée patient réelle par anticipation. **Révision** : post-HDS.
+
+## ADR-006 — Multi-fenêtres : bascule « récents/épinglés », pas d'onglets réels
+**Date :** 2026-08-02 · **Statut :** accepté
+
+**Contexte.** Ouvrir plusieurs patients « comme des onglets ».
+
+**Décision.** Ne pas introduire un vrai système multi-fenêtres : dans un SPA monofichier de ~8 000 lignes, cela implique dupliquer l'état du dossier (événements, snapshot, timeline, focus) et gérer leur isolation — coût et risque de régression élevés sur le chemin critique. Alternative retenue : **bascule rapide entre patients récents/épinglés** (mémoire des derniers dossiers), qui couvre l'essentiel du besoin. **Révision** : si un usage réel prouve le besoin d'édition simultanée.
+
+## ADR-007 — Workspace personnalisable : masquer/réordonner, pas de drag-drop
+**Date :** 2026-08-02 · **Statut :** accepté
+
+**Contexte.** Un workspace « façon Notion » (déplacer les cartes, masquer des modules). Le backend `workspace_layouts` (table + API) existe déjà (Sprint 6).
+
+**Décision.** Livrer d'abord la valeur **sans** moteur de drag-drop : **basculer la visibilité et l'ordre** des modules par simples préférences (persistées via `workspace_layouts`). Le drag-drop complet (capture pointeur, réordonnancement fluide, layouts multiples) est un chantier UI à part. **Conséquence** : personnalisation réelle, coût maîtrisé.
+
+## ADR-008 — Documents intelligents : extraction structurée, OCR différé
+**Date :** 2026-08-02 · **Statut :** accepté
+
+**Contexte.** « Déposez n'importe quel PDF, MediAI détecte/extrait/classe/résume. »
+
+**Décision.** S'appuyer sur l'existant (`LAB_STRUCTURING_PROMPT`, `IMAGING_STRUCTURING_PROMPT`) pour l'extraction structurée sur **saisie/texte**. L'OCR « tout PDF » est reporté : fiabilité variable en stack vanilla **et** vrais fichiers patients = HDS. **Révision** : post-HDS, avec un moteur OCR auto-hébergé (cf. point Whisper de la [roadmap conformité](10_SECURITY.md)).
+
 ## ADR-004 — Design tokens : source unique partagée (rappel)
 **Date :** 2026-08-01 · **Statut :** accepté
 
