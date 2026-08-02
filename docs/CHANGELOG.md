@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 19 · Trust & Polish — 2026-08-02
+
+Sprint 100 % qualité & crédibilité de marque (aucune fonctionnalité métier). Site `mediai-site`. *(Structure & crédibilité livrées ; polish pixel/tarifs = suite dédiée.)*
+
+- **Phase 1 · Logo & favicon** : logo officiel recréé en **SVG vectoriel** (`/logo.svg`, transparent, net, swap-ready) — header/footer de la landing + **favicon sur toutes les pages** (app, patient, admin, trust, marketing). *(Wordmark conservé « MediAI » — le logo fourni indiquait « MédiAI » ; à confirmer si renommage souhaité.)*
+- **Phase 2 · Navigation** épurée (Produit · Tarifs · Ressources · Entreprise + « Demander un accès »).
+- **Phases 6-9 · Pages** : footer refondu en 4 colonnes vers de **vraies pages** ; création de **/entreprise** (mission/vision/valeurs/contact/presse), **/ressources** (comment ça marche/FAQ/sécurité/nouveautés), **/legal** (mentions/confidentialité/CGU/cookies — honnête, sans inventer d'identifiants juridiques). Sur `site.css` partagé.
+- **Phase 5 · Enterprise** : page **/enterprise** (formulaire de devis complet) + endpoint **`POST /api/enterprise-quote`** (Resend → contactmediaifr@gmail.com, isolé et remplaçable par un CRM ; anti-spam ; aucune donnée patient).
+- **Phase 10 (partiel) · Liens morts** : **tous** les `#footer` morts corrigés (0 restant), lien « Nous contacter » → /entreprise#contact.
+- **Phase 11 · SEO** : favicon SVG, données structurées **Organization** (JSON-LD), meta/OG cohérents par page.
+- **Phase 3 (nommé) · Alignement** : étoile « Nous simplifions le quotidien » (chemin SVG asymétrique) **recentrée**.
+- **Reste (suite dédiée)** : audit pixel exhaustif (Phase 3/12), refonte des cartes tarifaires « façon Apple » (Phase 4), audit global liens/responsive/perf (Phase 10).
+
 ## [Non publié] — Sprint 18 · Zero Click Medicine — 2026-08-02
 
 « Le meilleur clic est celui qui n'existe plus. » MediAI prépare, organise et simplifie *avant* que le médecin n'agisse. Posture CPO + CTO. Audit préalable ([19_SPRINT18_ZERO_CLICK.md](19_SPRINT18_ZERO_CLICK.md)) : **~50 % du cahier existait déjà** (Focus Mode, Centre d'actions, timeline-narrative) → élevé/unifié plutôt que reconstruit (règle #4). Conflits signalés et résolus honnêtement (salle d'attente/multi-fenêtres/workspace/OCR → alternatives légères + ADR ; vraies données patient hors HDS refusées). **Sprint complet — 4 vagues livrées.**
