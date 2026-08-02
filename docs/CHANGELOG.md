@@ -4,6 +4,15 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 20 · Apple Patient Experience — 2026-08-02
+
+Refonte de l'espace patient (`mediai-site/patient.html`) façon Apple Health / Fitness / Journal : « ce n'est pas une app médicale, c'est une belle app ». 15 phases en 5 vagues. **Vagues A/B/C livrées** ; D (messagerie intelligente + backend) et E (Journal, Check-in, Reminder, Mode Famille) à suivre. Garde-fous transparence tenus (aucune donnée inventée, pas de fausse stat, données sensibles en démo locale jusqu'à HDS).
+
+- **Vague A · Mission Design + Home (Phases 1, 9)** : langage visuel « Health OS » (rayons 26/32px, ombres douces, verre, respiration, révélation `hos-rise`). Home « une chose à la fois » : *Bonjour X. / Comment allez-vous aujourd'hui ?* → grande carte ❤️ (statut de suivi honnête, jamais un verdict médical) → cartes focus (RDV · traitement · document). Code mort supprimé.
+- **Vague B · Cartes vivantes + Traitement + Documents (Phases 3, 7, 8)** : traitement vivant (anneau de progression du jour, créneaux Matin/Midi/Soir ✔ pris · ● maintenant · ○ à venir, validation animée persistée **localement**, pastille par forme, « Pourquoi ? » seulement si renseigné) ; Documents façon Fichiers (grille de cartes à miniatures colorées, aperçu dérivé du réel).
+- **Vague C · Fil de santé + Mon Médecin + Mon Histoire (Phases 4, 6, 12)** : historique → fil façon Apple Fitness (regroupé par jour, phrases humaines) ; Mon Médecin (vue émotionnelle, coordonnées réelles seulement, **aucune fausse stat de temps de réponse**) ; Parcours Santé présenté comme un **livre** (kicker, lettrine, chapitres).
+- **Décisions produit** : Journal Santé + Check-in + Mode Famille = **démo locale / sélecteur de profils démo** ce sprint (données de santé sensibles → règle d'or HDS) ; vraie architecture serveur + comptes liés → ADR à venir.
+
 ## [Non publié] — Sprint 19 · Trust & Polish — 2026-08-02
 
 Sprint 100 % qualité & crédibilité de marque (aucune fonctionnalité métier). Site `mediai-site`.
