@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 18 · Zero Click Medicine — 2026-08-02
+
+« Le meilleur clic est celui qui n'existe plus. » MediAI prépare, organise et simplifie *avant* que le médecin n'agisse. Posture CPO + CTO. Audit préalable ([19_SPRINT18_ZERO_CLICK.md](19_SPRINT18_ZERO_CLICK.md)) : **~50 % du cahier existait déjà** (Focus Mode, Centre d'actions, timeline-narrative) → élevé/unifié plutôt que reconstruit (règle #4). Conflits signalés et résolus honnêtement (salle d'attente/multi-fenêtres/workspace/OCR → alternatives légères + ADR ; vraies données patient hors HDS refusées). *(Sprint en cours — Vagues A et B livrées.)*
+
+**Vague A — Intelligence du dossier.**
+- **⭐ Le Journal Clinique** : l'histoire du patient **en prose** (médecin), qui remplace la relecture de dizaines de comptes-rendus. Nouvel endpoint `GET /api/patients/:id/journal-clinique` (`CLINICAL_JOURNAL_PROMPT`, anonymisé avant/après, cache `clinical_journals`). Bouton « 📖 Journal clinique » du dossier → récit + **export Copier / Télécharger / Régénérer**. Badge « IA · à vérifier ».
+- **AI Inbox** : le Centre d'actions devient une **boîte que le médecin vide** (Gmail-style) — items (résultats à vérifier, renouvellements, signaux) cochés un par un, « Tout marquer comme traité », état « Boîte vide 🎉 », « traité » persisté par jour. Langage couleur sémantique.
+
+**Vague B — Le flux de consultation.**
+- **Smart Queue** (vue « File du jour ») : rendez-vous du jour triés/colorés par complexité (🔴 complexe / 🟠 à surveiller / 🟢 simple), dérivée des signaux + résultats, badges ⚡📄. Déterministe.
+- **Focus Mode « Terminer → patient suivant »** : le Mode Consultation enchaîne automatiquement sur le patient suivant de la file (sans retour manuel) ; fin de file → sortie auto.
+- **Consultation Snapshot** : fiche visuelle de la dernière consultation (diagnostic, traitement, suivi, durée si présente, constantes), déterministe, champs jamais inventés.
+
 ## [Non publié] — Sprint 17 · The Intelligent Clinic — 2026-08-01
 
 MediAI n'attend plus, il **travaille pour le médecin**. Posture CPO + CTO. Audit préalable ([18_SPRINT17_INTELLIGENT_CLINIC.md](18_SPRINT17_INTELLIGENT_CLINIC.md)) : **~60 % du cahier existait déjà** (Copilote, signaux prédictifs, Smart Timeline, pré-consult, dossier vivant) — décision de CPO d'**élever/unifier** plutôt que reconstruire (règle #4). Conflits signalés et résolus honnêtement (temps gagné = estimation transparente ; PDF = périmètre synthétique ; mobile = passe responsive réaliste). **Sprint complet — 4 vagues livrées.**
