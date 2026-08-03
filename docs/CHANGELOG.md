@@ -15,6 +15,7 @@ Refonte de l'espace patient (`mediai-site/patient.html`) façon Apple Health / F
 - **Vague E · Journal, Check-in, Rappels, Famille (Phases 15, 13, 10, 11)** : ⭐ **Journal de santé** (humeur du jour + note, évolution 14 j colorée par ressenti — « MediAI met en valeur votre ressenti, pas seulement vos analyses ») ; **Check-in** avant consultation (curseurs douleur/fatigue/sommeil + constantes, transmis au médecin via la messagerie) ; **Smart Reminder** (rappels calmes groupés Ce soir / Demain / Prochainement, dérivés du réel) ; **Mode Famille** (sélecteur de profils façon Apple Family, proches en démo). Journal & Check-in **stockés uniquement sur l'appareil** (localStorage).
 - **Décisions produit** (données de santé sensibles → règle d'or HDS) : Journal Santé + Check-in = **démo locale** ; Mode Famille = **sélecteur de profils démo**. Vraie architecture serveur + comptes liés/mineurs → **[ADR-009 & ADR-010](17_ADR.md)**.
 - **Périmètre assumé** : messagerie — réactions/épinglés/recherche non simulés (backlog) ; check-in — photos non implémentées (HDS).
+- **Vue médecin branchée** (`app.html`) : la messagerie du cockpit affiche la **catégorie** (🩺 Médical / 🗂️ Secrétariat), signale et met en forme les **check-ins reçus** ; l'alerte des nouveaux messages patient était déjà assurée par le compteur non-lus. **Non branché volontairement** : l'évolution du ressenti (Journal Santé) reste locale à l'appareil du patient (ADR-009) — visible côté médecin seulement après stockage serveur post-HDS.
 
 ## [Non publié] — Sprint 19 · Trust & Polish — 2026-08-02
 
