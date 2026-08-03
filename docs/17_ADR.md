@@ -88,6 +88,18 @@ Statuts : `accepté` · `proposé` · `remplacé`.
 
 **Décision.** Livrer d'abord l'**UX du sélecteur de profils** avec des profils de proches **clairement marqués « Démo »** (aucune vraie donnée d'un tiers) — l'expérience visuelle est complète, le concept est démontrable. Le vrai système multi-comptes (data model, invitations, consentement, cloisonnement par profil, cas des mineurs) est un **chantier data + juridique dédié**, hors d'un sprint UX et à cadrer avec la conformité. **Révision** : sprint dédié après HDS.
 
+## ADR-011 — Patient Workspace : photos, import/scan et métadonnées d'organisation
+**Date :** 2026-08-03 · **Statut :** accepté
+
+**Contexte.** Sprint 21 (page Patients médecin façon Apple Contacts). Trois chantiers touchent soit des données sensibles, soit une infra absente : (a) **photos de patients** (Innov 1/2/14) — donnée de santé sensible, pas d'object storage ; (b) **import de dossier / scan de pièce d'identité** (Innov 3) — parsing/OCR + fichiers réels = HDS ; (c) **favoris/collections/tags** (Innov 5/8/12) — métadonnées d'organisation dont certaines (tag « Diabète ») sont des données de santé.
+
+**Décision.**
+- **Photos** : l'UI est **prête** (avatars à initiales, champ `photo_url` affiché si présent, le médecin peut gérer la visibilité côté UI). Le **stockage réel d'images** (object storage chiffré, endpoints d'upload, redimensionnement, sync depuis l'espace patient) est **différé jusqu'à l'infra HDS** — aucune image patient stockée avant.
+- **Import / Scan** : livrés comme **entrées d'architecture** dans le chooser « Ajouter un patient » (badge « Bientôt »), sans traitement de fichiers réels avant HDS (mêmes raisons que l'OCR, cf. [ADR-008](#adr-008)).
+- **Favoris/Collections/Tags/Filtres** : stockés en **localStorage** sur l'appareil du médecin ; la synchronisation multi-appareils (table serveur) est différée — un tag lié à un patient est une donnée de santé, même règle d'or que les photos ([10_SECURITY.md](10_SECURITY.md)).
+
+**Conséquence.** L'écran est démontrable en keynote sans stocker de donnée sensible avant l'agrément. **Révision** : post-HDS, on branche object storage (photos), OCR (scan), parseurs d'import, et une table serveur pour les métadonnées.
+
 ## ADR-004 — Design tokens : source unique partagée (rappel)
 **Date :** 2026-08-01 · **Statut :** accepté
 

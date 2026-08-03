@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 21 · Patient Intelligence Workspace — 2026-08-03
+
+La page **Patients** côté médecin (`mediai-site/app.html`) devient le centre nerveux du cabinet, façon Apple Contacts/Photos/Health. **15 innovations en 5 vagues — sprint complet.** Tous les signaux sont **dérivés du réel** (jamais inventés) ; décisions HDS : photos **UI-only** (upload différé) et métadonnées d'organisation **en local** ([ADR-011](17_ADR.md)).
+
+- **Vague A · Cartes + vues + UX Apple (Innov 1, 4)** : `renderPatientsList` refait — toolbar (recherche instantanée, 5 vues Cartes/Liste/Aujourd'hui/Favoris/À suivre, + Patient) et cartes riches (avatar dégradé à initiales, âge·sexe, prochain RDV, pastille **Pulse** + badge d'état déterministe 🔴🟠🟢⚪). Favoris épinglables.
+- **Vague B · Signaux (Innov 10, 11, 15)** : Patient Pulse ; **mini-timeline** (3 événements) ; **Relationship Timeline** « ❤️ Suivi depuis X · N consultations ».
+- **Vague C · Aperçu & fiche (Innov 6, 7, 14)** : recherche instantanée ; **Quick Preview au survol** (0 clic, données en mémoire) ; **fiche latérale** qui glisse à droite (résumé, coordonnées réelles, traitement, actions rapides) — le dossier complet ne s'ouvre que si besoin.
+- **Vague D · Organisation (Innov 8, 9, 12, 13)** : **Tags** colorés, **Smart Filters** dérivés (message non lu, analyse récente, RDV demain, pas vu depuis 12 mois, jamais consulté), **Collections** (albums), **sélection multiple** (export CSV réel, ajout à une collection ; rappel/document = « bientôt »). Métadonnées en localStorage.
+- **Vague E · Création & perf (Innov 3, 2)** : chooser **« Ajouter un patient »** (Créer / Inviter / Importer / Scanner — 3 derniers « Bientôt ») ; champ **`sexe`** (F/M/Autre) de bout en bout (migration `patients.sexe`) ; **rendu progressif** (fenêtre + IntersectionObserver) pour les gros cabinets ; avatars photo-ready. Photos/import/scan/sync → **[ADR-011](17_ADR.md)**.
+
 ## [Non publié] — Sprint 20 · Apple Patient Experience — 2026-08-02
 
 Refonte de l'espace patient (`mediai-site/patient.html`) façon Apple Health / Fitness / Journal : « ce n'est pas une app médicale, c'est une belle app ». **15 phases en 5 vagues — sprint complet.** Garde-fous transparence tenus (aucune donnée inventée, pas de fausse stat, données sensibles en démo locale jusqu'à HDS).
