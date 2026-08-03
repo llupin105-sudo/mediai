@@ -92,6 +92,7 @@ async function initDb() {
   `);
 
   // Accès portail patient — ALTER sûr, n'affecte pas les fiches existantes
+  await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS sexe TEXT;`); // Sprint 21 — F | M | Autre
   await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS login_email TEXT;`);
   await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS login_password_hash TEXT;`);
   await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS portal_activated_at TIMESTAMPTZ;`);
@@ -465,11 +466,11 @@ async function getUserByStripeCustomerId(customerId) {
 
 // ── Patients ──────────────────────────────────────────────────────
 
-async function createPatient({ id, medecinId, nom, prenom, dateNaissance, notes }) {
+async function createPatient({ id, medecinId, nom, prenom, dateNaissance, sexe, notes }) {
   const result = await pool.query(
-    `INSERT INTO patients (id, medecin_id, nom, prenom, date_naissance, notes)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [id, medecinId, nom, prenom, dateNaissance || null, notes || '']
+    `INSERT INTO patients (id, medecin_id, nom, prenom, date_naissance, sexe, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [id, medecinId, nom, prenom, dateNaissance || null, sexe || null, notes || '']
   );
   return result.rows[0];
 }

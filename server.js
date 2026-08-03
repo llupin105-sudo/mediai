@@ -1104,10 +1104,11 @@ app.post('/api/ordonnance/generate', requireAuth, async (req, res) => {
 // Patients — création, liste, détail, notes
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/patients', requireAuth, async (req, res) => {
-  const { nom, prenom, dateNaissance, notes } = req.body;
+  const { nom, prenom, dateNaissance, sexe, notes } = req.body;
   if (!nom || !prenom) {
     return res.status(400).json({ error: 'Nom et prénom du patient requis' });
   }
+  const sexeClean = ['F', 'M', 'Autre'].includes(sexe) ? sexe : null;
   try {
     const patient = await db.createPatient({
       id: crypto.randomUUID(),
@@ -1115,6 +1116,7 @@ app.post('/api/patients', requireAuth, async (req, res) => {
       nom: nom.trim(),
       prenom: prenom.trim(),
       dateNaissance: dateNaissance || null,
+      sexe: sexeClean,
       notes: notes || '',
     });
     return res.json({ success: true, patient });
