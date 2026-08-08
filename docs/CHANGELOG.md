@@ -4,6 +4,15 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint · MediAI Réseau (V1) — 2026-08-08
+
+Espace de **coordination médicale** (app médecin) : la messagerie devient un workspace « AirDrop + Messages + Notion » du parcours de soins. Onglet **💬 Réseau** (sidebar, après Consultations). **UI/UX only** — aucune API/auth/backend touchés. Cf [ADR-012](17_ADR.md).
+- **À traiter** (le cœur) : tri prioritaire des conversations (Répondre 🔴 / Confirmer·Vérifier 🟠 / Terminé 🟢) — MediAI montre ce qui nécessite l'attention.
+- **Conversation 2 colonnes** : fil + **fiche de coordination** (patient · participants multi-parties · documents · actions · historique).
+- **+ Demander** (avis / info / RDV / traitement / examen / orientation / patient / libre) → **Nouveau message avec contexte patient auto** + objet pré-rempli. **IA de préparation** (jamais d'envoi automatique).
+- Onglet **Réseau** : correspondants vérifiés (pas de fil public / abonnés / followers).
+- **Périmètre honnête** : canal médecin↔patient **réel** ; multi-parties/réseau externe **synthétique (démo)** clairement étiqueté. Backend multi-parties complet + **MSSanté** = différés post-HDS ([ADR-012](17_ADR.md)).
+
 ## [Non publié] — Sprint 24 · Patients « Calm Workspace » — 2026-08-08
 
 Refonte UI/UX de la page **Patients** (app médecin) vers une vue **calme et premium** (Apple × Linear). Objectif « 5 secondes » : qui suivre, qui nécessite mon attention, quoi faire. **UI uniquement** — aucune API/auth/Supabase/Render/Vercel touchée. Cf [docs/sprints/SPRINT-24.md](sprints/SPRINT-24.md).

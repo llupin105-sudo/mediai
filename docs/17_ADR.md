@@ -100,6 +100,15 @@ Statuts : `accepté` · `proposé` · `remplacé`.
 
 **Conséquence.** L'écran est démontrable en keynote sans stocker de donnée sensible avant l'agrément. **Révision** : post-HDS, on branche object storage (photos), OCR (scan), parseurs d'import, et une table serveur pour les métadonnées.
 
+## ADR-012 — MediAI Réseau : workspace d'abord, échange inter-pro réel (multi-parties + MSSanté) différé
+**Date :** 2026-08-08 · **Statut :** accepté
+
+**Contexte.** Sprint « MediAI Réseau » : transformer la messagerie en espace de **coordination** (médecin↔médecin↔établissement↔pharmacie↔labo↔patient) avec contexte patient, « À traiter », fiche de coordination, IA de préparation. Or : (a) le modèle actuel est **2-parties** (`message_threads` = medecin_id + patient_id) ; (b) il n'existe **aucun annuaire ni canal de délivrance** vers des professionnels/établissements externes ; (c) l'échange inter-pro réel de données de santé relève de **MSSanté** (espace de confiance régulé, opérateurs agréés) + **HDS**.
+
+**Décision.** Livrer la **V1 comme workspace UI/UX** : le canal médecin↔patient reste **réel** (`message_threads`) ; le **multi-parties et le réseau externe sont synthétiques** (démo), avec une **bannière d'honnêteté** explicite (« démo, MSSanté/HDS à venir »). Aucune délivrance réelle, aucune donnée de santé multi-org stockée. **Différés (chantiers d'architecture à part)** : schéma serveur multi-parties (`conversations`/`participants`/`attachments`/`actions`/`permissions`/`audit_log`), intégration **MSSanté**, permissions inter-org, pièces jointes réelles. L'IA **ne remplace jamais** le praticien et **n'envoie jamais** automatiquement.
+
+**Conséquence.** L'expérience différenciante (coordination lisible, « À traiter », contexte patient) est démontrable **sans** bâtir une infra régulée avant HDS/MSSanté. **Révision** : rouvrir le backend multi-parties + MSSanté une fois l'agrément HDS obtenu et un opérateur MSSanté choisi.
+
 ## ADR-004 — Design tokens : source unique partagée (rappel)
 **Date :** 2026-08-01 · **Statut :** accepté
 
