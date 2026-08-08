@@ -62,3 +62,4 @@ Format léger : quand une décision structurante est prise, l'ajouter ci-dessous
 - **2026-07 — Palette bleue** (remplace marine/sage/vert). Raison : identité plus claire et moderne. Impact : tokens `--sage*` conservés par compat (dette #4).
 - **2026-07-17 — `medical_events` comme table polymorphe unique** (abandon de `compte_rendus`). Raison : chronologie unifiée, extensibilité.
 - **2026-07-17 — Tests via `node:test`** (pas de framework externe). Raison : zéro dépendance, durable.
+- **2026-08-08 — Sprint 24 (Patients Calm Workspace) — dette légère.** Vue calme = référence par défaut ; le workspace riche (Sprint 21) reste derrière « Voir le tableau complet » — à retirer si l'usage confirme. Sidebar #3 du cahier (raccourcis Messages/Alertes/Tâches chiffrés) non refaite (focalisation page Patients). Graphify `update .`/`query` non lancés (CLI absent de l'env).

@@ -3,7 +3,7 @@
 > **État vivant du projet.** À mettre à jour à la fin de chaque session de travail significative. C'est le fichier qu'on lit pour savoir « où on en est ».
 
 **Version produit :** V1 (qualité commercialisable — Sprint 9 ; UX refondue — Sprints 10-11 ; copilote clinique — Sprint 12 ; app patient autonome — Sprint 15 ; maturité produit/plateforme — Sprint 16 ; clinique intelligente — Sprint 17 ; zero-click — Sprint 18)
-**Dernière consolidation :** 2026-08-02 (Sprint 18 — Zero Click Medicine, complet)
+**Dernière consolidation :** 2026-08-08 (Sprint 24 — Patients « Calm Workspace »). Infra confirmée : Vercel (`mediai.fr/app`) + Render (Express/JWT/Google) + **Supabase** (session pooler, PG 17). Auth Google réparée (Sprint 22). Dashboard « Le prochain geste » (Sprint 23) + page Patients calme (Sprint 24) livrés. Détails : [sprints/SPRINT-24.md](sprints/SPRINT-24.md), [infra-auth via CHANGELOG].
 
 > ⚙️ **Config à faire (Sprint 16)** : définir `ADMIN_EMAILS` dans l'environnement Render pour ouvrir l'accès au Command Center (`/admin`).
 

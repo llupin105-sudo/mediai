@@ -4,6 +4,14 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 24 · Patients « Calm Workspace » — 2026-08-08
+
+Refonte UI/UX de la page **Patients** (app médecin) vers une vue **calme et premium** (Apple × Linear). Objectif « 5 secondes » : qui suivre, qui nécessite mon attention, quoi faire. **UI uniquement** — aucune API/auth/Supabase/Render/Vercel touchée. Cf [docs/sprints/SPRINT-24.md](sprints/SPRINT-24.md).
+- **Cartes horizontales** (une par patient, triées par priorité) : pastille d'état · initiales · nom/âge·sexe/état · Prochain RDV · Suivi · action recommandée · ›. Toute la card cliquable → dossier (`openPatientDetail`).
+- **4 états seulement** : 🟢 Stable · 🟠 À surveiller · 🔴 Action recommandée · ⚪ Nouveau patient (déjà dérivés du réel par `piwBuildModels`, réutilisés).
+- **Header + filtres épurés** (Tous · À voir aujourd'hui · Suivi actif · Nouveaux · À surveiller) + **barre de statut** discrète (RDV / Actions / À surveiller / Patients).
+- **Progressive disclosure** : le workspace riche du Sprint 21 n'est pas supprimé → accessible via « Voir le tableau complet ». Responsive (desktop 7 colonnes / mobile réduit). Accessibilité clavier + état textuel (pas que la couleur).
+
 ## [Non publié] — Sprint 21 · Patient Intelligence Workspace — 2026-08-03
 
 La page **Patients** côté médecin (`mediai-site/app.html`) devient le centre nerveux du cabinet, façon Apple Contacts/Photos/Health. **15 innovations en 5 vagues — sprint complet.** Tous les signaux sont **dérivés du réel** (jamais inventés) ; décisions HDS : photos **UI-only** (upload différé) et métadonnées d'organisation **en local** ([ADR-011](17_ADR.md)).
