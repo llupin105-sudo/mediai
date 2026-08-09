@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint · MediAI « Calm Dashboard » — 2026-08-09
+
+Reshape de l'**accueil médecin** (`app.html`) vers un **espace de travail calme** (Apple) : ouvrir → comprendre sa journée → agir → l'app disparaît. Remplace le hero « prochain geste » + Magic Input du Sprint 23. **UI/UX only** — cockpit/API/auth/backend inchangés, aucune donnée inventée.
+- **Header allégé** : « Bonjour Dr X 👋 » + date · 🔔 · ＋ Nouvelle. Plus de gros bloc coloré.
+- **Recherche globale** (⌘K) branchée sur la palette de commandes existante (`openCommandPalette`).
+- **« Aujourd'hui »** : timeline des RDV du jour (`cockpitState.data.agenda` filtré au jour) — heure · patient · type·âge · statut (En cours / À venir / Terminé) ; lignes cliquables → dossier (`renderDashToday`).
+- **« À faire » | « À surveiller »** (2 colonnes) : dérivés du cockpit réel (`priorites` / `ordonnances_a_renouveler` / `resultats_recents`) ; **couleurs sémantiques uniquement** (🔴 action / 🟠 attention / 📄 document) ; « Voir les patients → » (`renderDashTodo` / `renderDashAttention`).
+- **« Accès rapides »** : 4 actions (🎙 Dictée · 📄 Analyser un document · ✦ Compte rendu instantané · 📝 Nouvelle note).
+- **Gros KPI repliés** : « 6 consultations / 92 % IA » descendent sous « Statistiques de la journée » (`dashBand`/`dashCards` conservés). Styles `ensureCalmDashStyles`/`#calmDashStyles`.
+
 ## [Non publié] — Sprint · MediAI Réseau (V1) — 2026-08-08
 
 Espace de **coordination médicale** (app médecin) : la messagerie devient un workspace « AirDrop + Messages + Notion » du parcours de soins. Onglet **💬 Réseau** (sidebar, après Consultations). **UI/UX only** — aucune API/auth/backend touchés. Cf [ADR-012](17_ADR.md).
