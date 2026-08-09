@@ -60,6 +60,30 @@ L'écran (`renderDocumentCenter` → `#view-documents`) était déjà calme : en
 
 ---
 
-## Restant (à valider écran par écran)
-- **IA Assist** → « Quelle aide puis-je demander ? » : actions contextuelles (Résumer / Préparer / Structurer / Compte rendu) plutôt qu'un chat isolé.
-- Transversal : transitions harmonisées sur ces écrans.
+## Increment 3 — IA Assist (livré, `2195a77`)
+
+**Question de l'écran :** « Quelle aide puis-je demander à MediAI ? »
+**Action unique :** *Demander à MediAI* (le copilote).
+
+### Avant
+`#view-ia-hub` était un **catalogue descriptif passif** : 6 cartes **non-cliquables** décrivant les fonctions IA + un badge « où elles vivent ». On pouvait *lire* ce que l'IA sait faire, mais **rien lancer** — l'inverse du « ChatGPT dans un coin », mais rate quand même la question de l'écran.
+
+### Après
+- **Action principale** « ✦ Demander à MediAI » (hero) → `openCopiloteGlobal()` (le copilote réel déjà en place).
+- **4 actions rapides cliquables** (Préparer ma journée · Patients à regarder · Ordonnances à renouveler · Examens arrivés) → nouveau helper `iaAsk(q)` = `openCopiloteGlobal()` puis `copiloteSuggest(q)`. Réponses **déterministes instantanées** depuis la journée (réutilise `COPILOTE_OPS_SUGGESTIONS`, mode cockpit).
+- **Disclaimer honnête** : « l'IA assiste, elle ne pose jamais de diagnostic » (+ le copilote affiche déjà « ✦ IA · à vérifier · jamais un avis médical »).
+- **Catalogue conservé mais démoté** sous « Où l'IA vous assiste déjà » (cartes aplaties) : pointeurs contextuels honnêtes — ces outils vivent réellement dans le dossier/l'ordonnance/la dictée.
+- Sous-titre : fix Title Case (`.dash-date`).
+
+### Décisions / tests
+- **Aucun endpoint IA ajouté** : réutilise le copilote existant (`openCopiloteGlobal`/`copiloteSuggest`). Anonymisation/discipline « jamais de décision » inchangées.
+- Vérif : hero + 4 chips ✓ ; clic action rapide → panneau copilote ouvert + question envoyée + réponse déterministe (« Aucune ordonnance à renouveler… à vérifier ») ✓ ; **zéro erreur console** ; en ligne `ia-hero`/`ia-quick-chip`/`iaAsk` présents, **Google Client ID intact**.
+
+---
+
+## Bilan — Sprint 25 COMPLET
+Les 3 écrans en retard de la grammaire « calme » sont alignés : **Consultation** (une action : Générer), **Documents** (retrouver + créer), **IA Assist** (demander). Chaque écran répond à une question et converge vers une action. Dashboard et Patients l'étaient déjà (Calm Dashboard / Calm Workspace). Aucune fonctionnalité retirée, aucun backend touché, transparence tenue partout.
+
+### Restant éventuel (backlog, non bloquant)
+- Barre d'export SOAP (6 boutons) de la Consultation : pourrait être hiérarchisée (action primaire + « … »).
+- Transitions inter-vues harmonisées (polish transversal).

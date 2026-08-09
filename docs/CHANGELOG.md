@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 25 · « One Clear Action » — IA Assist (sprint complet) — 2026-08-09
+
+Troisième et dernier écran de la passe de cohérence : **IA Assist** (`app.html`). **UI only** — aucun endpoint IA ajouté. Cf [docs/sprints/SPRINT-25.md](sprints/SPRINT-25.md).
+- **Fin du catalogue passif** : les 6 cartes descriptives non-cliquables laissent place à un **point de départ d'action**.
+- **Action principale** « ✦ Demander à MediAI » → `openCopiloteGlobal()` (copilote réel existant).
+- **4 actions rapides cliquables** (Préparer ma journée · Patients à regarder · Ordonnances à renouveler · Examens arrivés) → `iaAsk(q)` = ouvre le copilote + envoie une demande pré-écrite (réponses **déterministes** depuis la journée).
+- **Disclaimer honnête** conservé (« l'IA assiste, elle ne pose jamais de diagnostic »).
+- **Catalogue démoté** sous « Où l'IA vous assiste déjà » (pointeurs contextuels honnêtes).
+- **Sprint 25 COMPLET** : Consultation + Documents + IA Assist alignés sur la grammaire calme (Dashboard/Patients l'étaient déjà). Zéro fonctionnalité retirée, backend/API/auth intacts.
+
 ## [Non publié] — Sprint 25 · « One Clear Action » — Documents — 2026-08-09
 
 Deuxième écran de la passe de cohérence : **Documents** (`app.html`). **UI only**. Cf [docs/sprints/SPRINT-25.md](sprints/SPRINT-25.md).
