@@ -4,6 +4,16 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 25 · « One Clear Action » — Consultation — 2026-08-09
+
+Passe de **cohérence** (pas d'ajout) : chaque écran principal doit répondre à **une question** et converger vers **une action**. Premier écran : **Consultation** (`app.html`). **UI only** — cockpit/API/auth inchangés. Cf [docs/sprints/SPRINT-25.md](sprints/SPRINT-25.md).
+- **Question / action de l'écran** : « De quoi ai-je besoin pendant la consultation ? » → *Générer le compte-rendu.*
+- **Fin du cold-open sur la facturation** : le bandeau quota (« 3 actions IA / mois ») passe de l'entête à un **pied de carte discret**.
+- **Sélecteur patient neutralisé** : plus de tint ambre (lu comme une alarme) — invitation calme, c'est l'étape 1.
+- **« Mode Focus »** : gros bouton pleine largeur → **pastille discrète** en haut à droite. **« Suggestions de questions »** : gros bouton → **lien secondaire** discret.
+- **En-tête** « Consultation » + sous-titre explicite ; flux vertical unique : titre → patient → dicter → coller → suggestion → spécialité → **Générer** → quota chuchoté.
+- **Zéro suppression de logique** : tous les IDs/handlers conservés (`micBtn`, `transcriptBox`, `generateBtn`, `symptomQuestionsBtn`, `usageBar`, `toggleFocusMode`, autosave, export SOAP). Le résultat SOAP restait déjà masqué jusqu'à génération (progressive disclosure conservée).
+
 ## [Non publié] — Sprint · MediAI « Calm Dashboard » — 2026-08-09
 
 Reshape de l'**accueil médecin** (`app.html`) vers un **espace de travail calme** (Apple) : ouvrir → comprendre sa journée → agir → l'app disparaît. Remplace le hero « prochain geste » + Magic Input du Sprint 23. **UI/UX only** — cockpit/API/auth/backend inchangés, aucune donnée inventée.
