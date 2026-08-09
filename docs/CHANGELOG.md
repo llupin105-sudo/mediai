@@ -4,6 +4,13 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 25 · polish — barre SOAP hiérarchisée — 2026-08-09
+
+Consultation (`app.html`) : la barre d'export post-génération passait **6 boutons à poids égal** → hiérarchie claire. **UI only**.
+- **💊 Générer l'ordonnance** (primaire, accent) · **✍️ Générer un courrier** (secondaire).
+- **⋯ Plus** = popover repliant Exporter PDF · Envoyer email · Imprimer (`toggleSoapMore`, ferme au clic extérieur, `aria-expanded`).
+- **← Nouvelle consultation** = reset discret à droite. Zéro action/handler retiré.
+
 ## [Non publié] — Sprint 25 · « One Clear Action » — IA Assist (sprint complet) — 2026-08-09
 
 Troisième et dernier écran de la passe de cohérence : **IA Assist** (`app.html`). **UI only** — aucun endpoint IA ajouté. Cf [docs/sprints/SPRINT-25.md](sprints/SPRINT-25.md).

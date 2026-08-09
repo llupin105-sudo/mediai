@@ -84,6 +84,12 @@ L'écran (`renderDocumentCenter` → `#view-documents`) était déjà calme : en
 ## Bilan — Sprint 25 COMPLET
 Les 3 écrans en retard de la grammaire « calme » sont alignés : **Consultation** (une action : Générer), **Documents** (retrouver + créer), **IA Assist** (demander). Chaque écran répond à une question et converge vers une action. Dashboard et Patients l'étaient déjà (Calm Dashboard / Calm Workspace). Aucune fonctionnalité retirée, aucun backend touché, transparence tenue partout.
 
+### Polish — barre SOAP hiérarchisée (livré, `a48a23a`)
+La barre d'export post-génération (`.export-row`) étalait **6 boutons à poids égal** (`.btn-export` `flex:1`). Hiérarchisée :
+- **💊 Générer l'ordonnance** = action primaire (accent plein) ; **✍️ Générer un courrier** = secondaire (outline).
+- **⋯ Plus** = popover repliant les 3 utilitaires (Exporter PDF · Envoyer email · Imprimer) — `toggleSoapMore`/`closeSoapMore` (ferme au clic extérieur, `aria-expanded`).
+- **← Nouvelle consultation** = reset discret, poussé à droite (`margin-left:auto`).
+- **Zéro action retirée** : mêmes handlers (`openOrdonnanceModal`, `openCourrierModal`, `exportPdf`, `openEmailModal`, `window.print`, `resetChart`). Vérif : rendu + popover ✓, zéro erreur console, **Google Client ID intact**.
+
 ### Restant éventuel (backlog, non bloquant)
-- Barre d'export SOAP (6 boutons) de la Consultation : pourrait être hiérarchisée (action primaire + « … »).
 - Transitions inter-vues harmonisées (polish transversal).
