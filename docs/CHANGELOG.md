@@ -4,6 +4,15 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 25 · « One Clear Action » — Documents — 2026-08-09
+
+Deuxième écran de la passe de cohérence : **Documents** (`app.html`). **UI only**. Cf [docs/sprints/SPRINT-25.md](sprints/SPRINT-25.md).
+- **Action de création manquante ajoutée** : « ＋ Nouveau document » (primaire, en-tête) → `openQuickCreate('document')` (flux existant `withPatient(openEventModal)`). L'écran répond aux 4 verbes : retrouver / créer / comprendre / ouvrir.
+- **Onglet actif** : pilule navy foncée → `accent-tint` (cohérent avec les filtres calmes du dashboard).
+- **État vide enrichi** (hors recherche) : 🗂️ + titre + explication + bouton de création.
+- **Sous-titre** : correction du Title Case parasite → phrase normale.
+- **Zéro suppression** : recherche instantanée, onglets par type + compteurs, favoris, pagination inchangés.
+
 ## [Non publié] — Sprint 25 · « One Clear Action » — Consultation — 2026-08-09
 
 Passe de **cohérence** (pas d'ajout) : chaque écran principal doit répondre à **une question** et converger vers **une action**. Premier écran : **Consultation** (`app.html`). **UI only** — cockpit/API/auth inchangés. Cf [docs/sprints/SPRINT-25.md](sprints/SPRINT-25.md).

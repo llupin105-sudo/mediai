@@ -40,7 +40,26 @@ Un **flux vertical unique** qui converge vers « Générer » :
 
 ---
 
+## Increment 2 — Documents (livré, `4af1e10`)
+
+**Question de l'écran :** « Quels documents dois-je gérer ? »
+**Verbes du cahier :** retrouver · **créer** · comprendre · ouvrir.
+
+### Avant
+L'écran (`renderDocumentCenter` → `#view-documents`) était déjà calme : en-tête + favoris (`dcFav`) + onglets par type avec compteurs (`dcTabs`, seuls les types non-vides s'affichent) + **recherche instantanée** (`dcSearch`) + liste (`dcList` : icône · titre · patient·date · étoile favori) + pagination « Voir plus ». **Manque :** aucune **action de création** (le cahier demande « créer un document »), onglet actif en **pilule navy foncée** (détonne du reste), état vide minimal.
+
+### Après
+- **Action primaire « ＋ Nouveau document »** dans l'en-tête → `openQuickCreate('document')` = flux **existant** `withPatient(openEventModal)` (choix patient puis modale document). L'écran répond enfin aux 4 verbes.
+- **Onglet actif** : navy foncé → **`accent-tint`/`accent-deep`** (cohérent avec les filtres calmes du dashboard).
+- **État vide enrichi** (`.dc-empty-lg`, quand aucun document hors recherche) : 🗂️ + « Aucun document pour l'instant » + explication + bouton de création.
+- **Sous-titre** : correction du Title Case parasite (`.dash-date` `capitalize`, prévu pour les dates) → phrase normale.
+
+### Décisions / tests
+- **Zéro suppression** : recherche, onglets, favoris, pagination, handlers (`onDocSearch`, `setDocTab`, `toggleDocFavorite`, `renderDocList/Tabs/Favorites`) inchangés. CSS ajouté à `ensureDocCenterStyles` (`.dc-head`, `.dc-new`, `.dc-empty-lg`).
+- Vérif : 5 docs → liste + onglets + compteurs ✓ ; liste vide → état vide large + CTA ✓ ; **zéro erreur console** ; en ligne `dc-new`/`dc-empty-lg`/onglet accent-tint présents, **Google Client ID intact**.
+
+---
+
 ## Restant (à valider écran par écran)
-- **Documents** → « Quels documents dois-je gérer ? » : recherche + filtres (type/date/patient/statut), liste calme, une entrée « Nouveau ».
 - **IA Assist** → « Quelle aide puis-je demander ? » : actions contextuelles (Résumer / Préparer / Structurer / Compte rendu) plutôt qu'un chat isolé.
-- Transversal : états vides soignés + transitions harmonisées sur ces écrans.
+- Transversal : transitions harmonisées sur ces écrans.
