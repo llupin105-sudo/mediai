@@ -91,5 +91,10 @@ La barre d'export post-génération (`.export-row`) étalait **6 boutons à poid
 - **← Nouvelle consultation** = reset discret, poussé à droite (`margin-left:auto`).
 - **Zéro action retirée** : mêmes handlers (`openOrdonnanceModal`, `openCourrierModal`, `exportPdf`, `openEmailModal`, `window.print`, `resetChart`). Vérif : rendu + popover ✓, zéro erreur console, **Google Client ID intact**.
 
-### Restant éventuel (backlog, non bloquant)
-- Transitions inter-vues harmonisées (polish transversal).
+### Polish — transitions inter-vues harmonisées (livré, `4657fa2`)
+Les vues (`dashboard`/`patients`/`consultation`/`documents`/`ia-hub`/`réseau`…) se remplaçaient **sans transition** (hard cut `display:none→block`), alors que chacune avait sa propre animation interne → arrivées incohérentes.
+- **Une seule** arrivée commune : `@keyframes appViewIn` (fade + `translateY(6px)`, `.28s ease-out`) sur `.app-view.visible`, rejouée à chaque `switchAppView`.
+- **Neutralisée** sous `prefers-reduced-motion: reduce` (a11y).
+- N'écrase **pas** les animations internes (`.chart-section` garde son `fadeUp` — ce n'est pas une `.app-view`). Pur CSS, zéro erreur console.
+
+**→ Sprint 25 entièrement bouclé, backlog vidé.**

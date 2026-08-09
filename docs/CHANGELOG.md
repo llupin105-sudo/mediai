@@ -4,6 +4,10 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint 25 · polish — transitions inter-vues harmonisées — 2026-08-09
+
+Toutes les vues médecin partagent désormais **une même arrivée douce** (`@keyframes appViewIn` : fade + `translateY(6px)`, `.28s`) sur `.app-view.visible`, au lieu d'un hard cut. Neutralisée sous `prefers-reduced-motion`. N'écrase pas les animations internes. **UI only, pur CSS.** → Sprint 25 bouclé.
+
 ## [Non publié] — Sprint 25 · polish — barre SOAP hiérarchisée — 2026-08-09
 
 Consultation (`app.html`) : la barre d'export post-génération passait **6 boutons à poids égal** → hiérarchie claire. **UI only**.
