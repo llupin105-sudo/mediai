@@ -4,6 +4,18 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint UI · MediAI 2.0 (P0 complet) — 2026-08-11
+
+Refonte premium façon Apple de l'app médecin (`app.html`). **UI only**, Réseau logique non touchée, auth/API/Supabase intacts. 7 items P0 livrés (un item = un déploiement vérifié). Cf [docs/sprints/SPRINT-MEDIAI-2.0.md](sprints/SPRINT-MEDIAI-2.0.md).
+- **#1 Sidebar** : logo SVG (croix + étoile, dégradé bleu→cyan) partout, drawer mobile avec scrim flouté fermable.
+- **#2 Floating Action Bar** : barre du bas dense → barre flottante liquid-glass icônes-seules + tooltips (zéro emoji), safe-area.
+- **#3 Recherche ⌘K** : recherches récentes ajoutées au Search Overlay (récents · suggestions · résultats catégorisés).
+- **#4 Aujourd'hui** : header épuré (retrait 🔔 + ＋ Nouvelle redondants), recherche prééminente.
+- **#5 Consultations** : dictée dynamique (durée + pause/reprendre) + étapes d'analyse « ✦ MediAI analyse… » (visuel, sans fait inventé).
+- **#6 Loading system** : splash de démarrage (logo + « Préparation… »), jamais de page vide.
+- **#7 Responsive** : fix débordement Réseau mobile (`minmax(0,1fr)`) + safe-areas iOS ; 0 débordement à 375/768px.
+- Reste P1 (Patients/Documents/Alertes/Paramètres) + P2 (micro-interactions, nettoyage emojis résiduels).
+
 ## [Non publié] — Sprint 25 · polish — transitions inter-vues harmonisées — 2026-08-09
 
 Toutes les vues médecin partagent désormais **une même arrivée douce** (`@keyframes appViewIn` : fade + `translateY(6px)`, `.28s`) sur `.app-view.visible`, au lieu d'un hard cut. Neutralisée sous `prefers-reduced-motion`. N'écrase pas les animations internes. **UI only, pur CSS.** → Sprint 25 bouclé.
