@@ -14,7 +14,11 @@ Refonte premium façon Apple de l'app médecin (`app.html`). **UI only**, Résea
 - **#5 Consultations** : dictée dynamique (durée + pause/reprendre) + étapes d'analyse « ✦ MediAI analyse… » (visuel, sans fait inventé).
 - **#6 Loading system** : splash de démarrage (logo + « Préparation… »), jamais de page vide.
 - **#7 Responsive** : fix débordement Réseau mobile (`minmax(0,1fr)`) + safe-areas iOS ; 0 débordement à 375/768px.
-- Reste P1 (Patients/Documents/Alertes/Paramètres) + P2 (micro-interactions, nettoyage emojis résiduels).
+- **#8 Patients** : header épuré (retrait 🔔/⚙/« tableau complet »), « + Nouveau patient » → « ＋ Ajouter » discret.
+- **#9 Documents** : cartes visuelles (tuile de type SVG colorée + avatar patient coloré = qui/quoi/quand/type).
+- **#10 Alertes vs Notifications** : cloche = notifications app ; sidebar Alertes = signaux médicaux (triangle + point discret, `openAlertes` → patients à traiter, dérivé des priorités réelles).
+- **#11 Paramètres → Control Center** : sections groupées (Compte/Sécurité/Préférences/Cabinet) ; réel via modales existantes, reste étiqueté « Bientôt ».
+- **P0 + P1 complets.** Reste P2 (micro-interactions, polish, nettoyage emojis résiduels).
 
 ## [Non publié] — Sprint 25 · polish — transitions inter-vues harmonisées — 2026-08-09
 

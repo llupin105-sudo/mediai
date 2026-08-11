@@ -42,10 +42,23 @@ Méthode : **incrémental, un item = un déploiement vérifié** (test local + n
 
 ---
 
-## Reste (P1/P2, non démarré)
-- **P1** : #8 Patients (retirer boutons dominants, cartes plus visuelles), #9 Documents (cartes visuelles qui→quoi→quand→type), #10 Alertes (distinguer notifications vs alertes), #11 Paramètres (vrai Control Center).
+## P1 — livré (4/4)
+
+### #8 — Patients (`2ce323d`)
+Header du Calm Workspace épuré : retrait 🔔 + ⚙ ; « + Nouveau patient » dominant → bouton **« ＋ Ajouter »** discret (SVG) ; retrait de « Voir le tableau complet → ». Cartes inchangées (déjà visuelles, couleur = statut).
+
+### #9 — Documents (`f8e0f5b`)
+Lignes plus visuelles : **tuile de type colorée à icône SVG** (`docTypeVisual` : ordonnance/compte-rendu/analyse/imagerie/courrier/vaccin) + **avatar patient coloré** (`patientAvatarColor`) → identifie qui/quoi/quand/type d'un coup d'œil, zéro emoji.
+
+### #10 — Alertes vs Notifications (`49e84d3`)
+Séparation claire : **cloche = Notifications** (événements app), **sidebar « Alertes » = signaux médicaux** (icône triangle, **point rouge discret**). `openAlertes()` → Patients filtrés « à voir aujourd'hui » (état action + RDV du jour). Indicateur = `updateAlertesIndicator()` sur `cockpitState.data.priorites` réelles, jamais inventé. Cloche découplée.
+
+### #11 — Paramètres → Control Center (`56188fc`)
+Page pauvre → **Control Center groupé** (Compte · Sécurité & confidentialité · Préférences · Cabinet). Réel : Profil (`openProfileModal`), Intelligence MediAI (`openPreferencesModal`), Compte, Déconnexion. En préparation, étiquetés **« Bientôt »** (transparence, `settingsSoon` = toast) : Sécurité, Confidentialité, Notifications, Apparence, Cabinet & équipe. Icônes SVG colorées, zéro emoji.
+
+## Reste (P2, non démarré)
 - **P2** : micro-interactions transversales, polish visuel, animations, détails responsive.
-- **Dette « no emoji »** : quelques emojis subsistent dans des composants non refaits (cartes « Accès rapides », icônes de la palette `cmdk`, quick-create) — à nettoyer en P2.
+- **Dette « no emoji »** : emojis résiduels dans « Accès rapides » (dashboard), icônes de la palette `cmdk`, quick-create, onglets IA Assist rapides — à nettoyer en P2.
 
 ## Garde-fous tenus
 UI only ; auth Google / Stripe / API / Supabase intacts ; Réseau logique inchangée ; transparence (étapes d'analyse = processus, pas de fait inventé) ; non-régression Google vérifiée à chaque déploiement.
