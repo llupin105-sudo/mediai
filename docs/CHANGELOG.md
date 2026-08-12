@@ -18,7 +18,9 @@ Refonte premium façon Apple de l'app médecin (`app.html`). **UI only**, Résea
 - **#9 Documents** : cartes visuelles (tuile de type SVG colorée + avatar patient coloré = qui/quoi/quand/type).
 - **#10 Alertes vs Notifications** : cloche = notifications app ; sidebar Alertes = signaux médicaux (triangle + point discret, `openAlertes` → patients à traiter, dérivé des priorités réelles).
 - **#11 Paramètres → Control Center** : sections groupées (Compte/Sécurité/Préférences/Cabinet) ; réel via modales existantes, reste étiqueté « Bientôt ».
-- **P0 + P1 complets.** Reste P2 (micro-interactions, polish, nettoyage emojis résiduels).
+- **P2a Nettoyage emojis** : dashboard « Accès rapides », chips IA Assist, palette ⌘K (jeu SVG `CIC`) → icônes SVG, zéro emoji sur ces surfaces.
+- **P2b Micro-interactions** : feedback press (scale .99) sur lignes/cartes cliquables + transitions harmonisées (reduced-motion respecté).
+- **Sprint MediAI 2.0 COMPLET (P0 7/7 · P1 4/4 · P2 2/2).** Dette documentée : emojis `TL_TYPES` (timeline/favoris) + états vides = passe dédiée ultérieure.
 
 ## [Non publié] — Sprint 25 · polish — transitions inter-vues harmonisées — 2026-08-09
 

@@ -56,9 +56,19 @@ Séparation claire : **cloche = Notifications** (événements app), **sidebar «
 ### #11 — Paramètres → Control Center (`56188fc`)
 Page pauvre → **Control Center groupé** (Compte · Sécurité & confidentialité · Préférences · Cabinet). Réel : Profil (`openProfileModal`), Intelligence MediAI (`openPreferencesModal`), Compte, Déconnexion. En préparation, étiquetés **« Bientôt »** (transparence, `settingsSoon` = toast) : Sécurité, Confidentialité, Notifications, Apparence, Cabinet & équipe. Icônes SVG colorées, zéro emoji.
 
-## Reste (P2, non démarré)
-- **P2** : micro-interactions transversales, polish visuel, animations, détails responsive.
-- **Dette « no emoji »** : emojis résiduels dans « Accès rapides » (dashboard), icônes de la palette `cmdk`, quick-create, onglets IA Assist rapides — à nettoyer en P2.
+## P2 — livré (2/2)
+
+### P2a — Nettoyage des emojis (`d11f0c1`)
+Surfaces visibles converties en icônes SVG (cahier §1) : dashboard « Accès rapides » (mic/doc/étoile/stylo), chips IA Assist (calendrier/triangle/pilule/fiole), **palette ⌘K** (jeu `CIC` de 16 SVG : commandes + navigation + résultats patient/document/RDV/recherche). Palette 100 % sans emoji (vérifié).
+
+### P2b — Micro-interactions (`aa92914`)
+Feedback press (scale .99) sur les lignes/cartes cliquables non-boutons (`.dc-row`, `.pcalm`, `.settings-row`, `.cmdk-item`, `.dt-row`, `.td-row`, `.at-p`, `.rz-conv`) + transitions harmonisées, dans `ensureMicroStyles` (socle existant : focus-visible, press boutons, stagger). Neutralisé sous `prefers-reduced-motion`.
+
+## Dette résiduelle (documentée, hors sprint)
+- **Emojis restants** : icônes de type `TL_TYPES` (timeline / favoris / centre de notifications) et quelques **états vides** (`emptyState`) — surface transverse plus large, à convertir dans une passe dédiée pour éviter tout risque de régression visuelle.
+
+## ✅ Sprint MediAI 2.0 — COMPLET (P0 7/7 · P1 4/4 · P2 2/2)
+Refonte premium livrée de bout en bout, incrémentale, chaque item déployé + vérifié (non-régression Google). Auth/API/Supabase/Réseau intacts, transparence tenue (« Bientôt » honnête, aucune donnée inventée).
 
 ## Garde-fous tenus
 UI only ; auth Google / Stripe / API / Supabase intacts ; Réseau logique inchangée ; transparence (étapes d'analyse = processus, pas de fait inventé) ; non-régression Google vérifiée à chaque déploiement.
