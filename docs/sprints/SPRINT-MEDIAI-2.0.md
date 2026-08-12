@@ -64,8 +64,11 @@ Surfaces visibles converties en icônes SVG (cahier §1) : dashboard « Accès r
 ### P2b — Micro-interactions (`aa92914`)
 Feedback press (scale .99) sur les lignes/cartes cliquables non-boutons (`.dc-row`, `.pcalm`, `.settings-row`, `.cmdk-item`, `.dt-row`, `.td-row`, `.at-p`, `.rz-conv`) + transitions harmonisées, dans `ensureMicroStyles` (socle existant : focus-visible, press boutons, stagger). Neutralisé sous `prefers-reduced-motion`.
 
-## Dette résiduelle (documentée, hors sprint)
-- **Emojis restants** : icônes de type `TL_TYPES` (timeline / favoris / centre de notifications) et quelques **états vides** (`emptyState`) — surface transverse plus large, à convertir dans une passe dédiée pour éviter tout risque de régression visuelle.
+### P2c — Dette emoji : TL_TYPES → SVG (`770d7be`)
+Le système d'icônes de type `TL_TYPES` (11 types) passe de l'emoji au **SVG** via helper `_ti` + classe `.tl-typ-ic` dimensionnée en **1em** : l'icône hérite automatiquement du `font-size` **et** de la couleur de chaque conteneur (`.tl-node` par type, `.tlh-ic` du hover, `fav-chip`, etc.) — **aucun des 8 consommateurs n'a été modifié**. Fallbacks `'📄'` → `TL_TYPES.document.icon`. Vérifié : timeline + favoris rendent les SVG à la bonne taille/couleur par type.
+
+## Dette résiduelle (documentée, dispersée)
+Emojis **one-off** restants, hors systèmes d'icônes cohérents (déjà convertis : Action Bar, palette `CIC`, documents `docTypeVisual`, `TL_TYPES`) : `NOTIF_META` (centre de notifications), icônes de résultats du cockpit (🔴🟠), `emptyState` (icône par défaut + ~15 appels), sélecteur « + Demander » du Réseau, quelques badges. Surface éclatée à faible valeur marginale → passe dédiée ultérieure si souhaité.
 
 ## ✅ Sprint MediAI 2.0 — COMPLET (P0 7/7 · P1 4/4 · P2 2/2)
 Refonte premium livrée de bout en bout, incrémentale, chaque item déployé + vérifié (non-régression Google). Auth/API/Supabase/Réseau intacts, transparence tenue (« Bientôt » honnête, aucune donnée inventée).
