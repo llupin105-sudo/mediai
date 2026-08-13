@@ -21,7 +21,8 @@ Refonte premium façon Apple de l'app médecin (`app.html`). **UI only**, Résea
 - **P2a Nettoyage emojis** : dashboard « Accès rapides », chips IA Assist, palette ⌘K (jeu SVG `CIC`) → icônes SVG, zéro emoji sur ces surfaces.
 - **P2b Micro-interactions** : feedback press (scale .99) sur lignes/cartes cliquables + transitions harmonisées (reduced-motion respecté).
 - **P2c Dette emoji TL_TYPES** : le système d'icônes de type (timeline/favoris/hover) passe en SVG via `.tl-typ-ic` en 1em (hérite taille+couleur des conteneurs, 8 consommateurs inchangés).
-- **Sprint MediAI 2.0 COMPLET (P0 7/7 · P1 4/4 · P2 3/3).** Systèmes d'icônes cohérents tous en SVG (Action Bar, palette `CIC`, documents, `TL_TYPES`). Reste des emojis one-off dispersés (NOTIF_META, cockpit, emptyState, sélecteur Réseau) documentés.
+- **Centre de notifications en SVG** : `notifItemHtml` prend l'icône sur `TL_TYPES` (SVG) ; rangées d'actions `ncRow` (⚠️/📈/💊/🚫) → SVG (`TL_TYPES.urgences`/`CIC.chart`/`CIC.pill`/ban inline). Teintes préservées.
+- **Sprint MediAI 2.0 COMPLET (P0 7/7 · P1 4/4 · P2 3/3).** Systèmes d'icônes cohérents tous en SVG (Action Bar, palette `CIC`, documents, `TL_TYPES`, centre de notifs). Reste des emojis one-off dispersés (icônes cockpit `ckpt`, `emptyState`, sélecteur « + Demander » Réseau, badges) documentés.
 
 ## [Non publié] — Sprint 25 · polish — transitions inter-vues harmonisées — 2026-08-09
 
