@@ -4,6 +4,19 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint · Intégration Doctolib (mock-first) — 2026-08-14
+
+MediAI devient techniquement prêt à accueillir un connecteur Doctolib officiel **sans réécrire son architecture**. Livré **MOCK de bout en bout** ; le connecteur réel nécessite une intégration officielle. Cf [docs/integrations/doctolib.md](integrations/doctolib.md).
+- **Couche `integrations/doctolib/`** : contrat abstrait `DoctolibConnector` + `MockDoctolibConnector` (3 praticiens, 10 patients, 15 RDV, 8 documents, déterministe). Le reste de MediAI ne dépend jamais directement de Doctolib.
+- **Sécurité** : secrets **côté serveur uniquement** (jamais au frontend), chiffrement **AES-256-GCM at rest**, **HMAC** webhooks (temps constant), anti-rejeu + idempotence, allowlist IP, redaction des logs, révocation à la déconnexion.
+- **Synchro** : moteur full/incrémental, **déduplication** par `external_id` (2× → 0 doublon), ordre patients→RDV→documents, observabilité (created/updated/unchanged/failed).
+- **Webhooks** (abstraction + mock) : signature → fraîcheur → idempotence ; types non présumés côté Doctolib.
+- **Base** : tables `integration_*` (connections/external_records/sync_runs/audit_logs/webhook_events) via `db.js initDb` + colonnes `source`/`external_id`/`external_synced_at`.
+- **API** : `/api/integrations/doctolib/` (status · mock/connect · mock/sync · mock/disconnect · webhook · diagnostic admin).
+- **UI Paramètres → Connexions** : carte Doctolib épurée (statut, flow 5 étapes, compteurs, synchroniser/gérer/déconnecter, diagnostic admin) ; étiquette source discrète. Les données synchronisées apparaissent dans Aujourd'hui/Patients/Documents (mêmes tables).
+- **Tests** : `test/doctolib.test.js` (12) — mapping, dédup, incrémental, signature/anti-rejeu/idempotence webhook, secrets, erreurs. Suite complète **41/41** verte.
+- **Transparence** : aucune API Doctolib inventée, aucun scraping, aucun secret au frontend.
+
 ## [Non publié] — Sprint UI · MediAI 2.0 (P0 complet) — 2026-08-11
 
 Refonte premium façon Apple de l'app médecin (`app.html`). **UI only**, Réseau logique non touchée, auth/API/Supabase intacts. 7 items P0 livrés (un item = un déploiement vérifié). Cf [docs/sprints/SPRINT-MEDIAI-2.0.md](sprints/SPRINT-MEDIAI-2.0.md).
