@@ -1101,6 +1101,14 @@ app.post('/api/ordonnance/generate', requireAuth, async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────
+// Intégrations externes — Doctolib (mock-first, branchable au connecteur
+// officiel). Toute la logique vit dans integrations/doctolib ; le reste de
+// MediAI ne dépend jamais directement de Doctolib.
+// ────────────────────────────────────────────────────────────────────
+app.use('/api/integrations/doctolib', require('./integrations/doctolib').createRoutes({ db, requireAuth, requireAdmin }));
+
+// ────────────────────────────────────────────────────────────────────
 // Patients — création, liste, détail, notes
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/patients', requireAuth, async (req, res) => {

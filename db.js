@@ -345,6 +345,90 @@ async function initDb() {
     );
   `);
 
+  // ── Intégrations externes (Sprint Doctolib) ──────────────────────
+  // Couche générique `integration_*` (provider = 'doctolib', extensible).
+  // - integration_connections : 1 ligne par (médecin, provider). Secret chiffré.
+  // - integration_external_records : registre de déduplication externalId→interne.
+  // - integration_sync_runs : observabilité (created/updated/unchanged/failed).
+  // - integration_audit_logs : traçabilité (jamais de secret ni de contenu médical).
+  // - integration_webhook_events : idempotence des webhooks (event_id unique).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS integration_connections (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'disconnected',
+      account_label TEXT,
+      config JSONB NOT NULL DEFAULT '{}',
+      encrypted_secret TEXT,
+      last_synced_at TIMESTAMPTZ,
+      external_cursor TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (medecin_id, provider)
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS integration_external_records (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      external_id TEXT NOT NULL,
+      internal_id UUID,
+      checksum TEXT,
+      external_updated_at TIMESTAMPTZ,
+      last_synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (medecin_id, provider, resource_type, external_id)
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_ext_records_lookup ON integration_external_records(medecin_id, provider, resource_type, external_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_ext_records_updated ON integration_external_records(external_updated_at);`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS integration_sync_runs (
+      id UUID PRIMARY KEY,
+      medecin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'running',
+      started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      finished_at TIMESTAMPTZ,
+      duration_ms DOUBLE PRECISION,
+      stats JSONB NOT NULL DEFAULT '{}',
+      error TEXT
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_sync_runs_medecin ON integration_sync_runs(medecin_id, provider, finished_at DESC);`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS integration_audit_logs (
+      id UUID PRIMARY KEY,
+      medecin_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      action TEXT NOT NULL,
+      meta JSONB NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_integ_audit_medecin ON integration_audit_logs(medecin_id, provider, created_at DESC);`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS integration_webhook_events (
+      event_id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  // Étiquette de provenance sur les entités métier (affichage « Source : Doctolib »).
+  await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS source TEXT;`);
+  await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS external_id TEXT;`);
+  await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS external_synced_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS source TEXT;`);
+  await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS external_id TEXT;`);
+  await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS external_synced_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE medical_events ADD COLUMN IF NOT EXISTS source TEXT;`);
+  await pool.query(`ALTER TABLE medical_events ADD COLUMN IF NOT EXISTS external_id TEXT;`);
+  await pool.query(`ALTER TABLE medical_events ADD COLUMN IF NOT EXISTS external_synced_at TIMESTAMPTZ;`);
+
   console.log('DEBUG - Base de données : tables vérifiées/créées avec succès');
 }
 
