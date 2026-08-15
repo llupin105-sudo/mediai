@@ -32,6 +32,9 @@ const db = require('./db');
 // ── Moteur métier du Cockpit (Sprint 6) — fonctions pures déterministes ──
 const cockpit = require('./cockpit');
 
+// ── MediAI Brain — moteur de contexte patient (déterministe) ──────────
+const brain = require('./brain');
+
 // ── Sous-traitants externes, isolés dans services/ (portabilité) ──────
 // Changer de fournisseur IA / transcription / email = modifier 1 fichier.
 const { callClaude } = require('./services/ia');
@@ -1586,6 +1589,25 @@ app.get('/api/patients/:id/journal-clinique', aiLimiter, requireAuth, async (req
   } catch (err) {
     console.error('[ERROR journal-clinique]', req.requestId, err.message);
     return res.status(500).json({ error: 'Erreur lors de la génération du journal clinique' });
+  }
+});
+
+// ── MediAI Brain — contexte patient unifié (déterministe, instantané) ──
+// Aucune IA, aucun quota : n'observe/classe que des faits du dossier.
+// C'est le socle « comprendre le dossier » (Patient Intelligence) que le
+// brief, la couche proactive et le copilote consomment.
+app.get('/api/patients/:id/context', requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const events = await db.listEventsByPatient(patient.id);
+    const context = brain.buildPatientContext({ patient, events });
+    res.json({ success: true, context });
+  } catch (err) {
+    console.error('[ERROR patient context]', err.message);
+    res.status(500).json({ error: 'Impossible de charger le contexte du dossier' });
   }
 });
 
