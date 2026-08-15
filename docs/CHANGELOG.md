@@ -4,6 +4,15 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint « MediAI Brain » · Consultation Intelligence — Brief 20s — 2026-08-15
+
+Capacité 2/3 (partie « avant la consultation ») : **préparer**. Un brief prêt-à-lire AVANT d'ouvrir le dossier.
+- **`brain.buildConsultationBrief`** (déterministe) : motif du RDV (`pickUpcomingAppointment`), dernière consultation, changements depuis, antécédents (extraits des 2 dernières consults, dédupliqués), traitements actifs, derniers examens, points à surveiller. Les **questions d'interrogatoire IA restent séparées** (endpoint `/preparation`), jamais mêlées aux faits.
+- **`GET /api/patients/:id/brief`** (requireAuth, déterministe, instantané) — vérifié en prod (motif tiré des RDV Doctolib synchronisés).
+- **UI** : carte **« Brief MediAI · 20 secondes · faits observés du dossier »** en tête du dossier (`renderPatientBrief`), repliable ; les faits (déterministes) dans le corps, l'**interprétation IA** isolée en pied (« Questions à poser → Demander à MediAI »).
+- **Tests** : +2 (`buildConsultationBrief`, `pickUpcomingAppointment`). Suite **50/50** verte.
+- Reste : orchestration post-consultation + Action Intelligence (proposition→validation + traçabilité Trust).
+
 ## [Non publié] — Sprint « MediAI Brain » · Patient Intelligence (1/3) — 2026-08-15
 
 Première des 3 grosses capacités du sprint « carte blanche » : **comprendre le dossier**. Socle = un moteur de contexte patient **100 % déterministe** (le Brain observe/classe des faits, n'invente rien ; l'interprétation IA reste séparée).
