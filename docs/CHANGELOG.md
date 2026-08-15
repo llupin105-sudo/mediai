@@ -4,6 +4,15 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint « MediAI Brain » · Patient Intelligence (1/3) — 2026-08-15
+
+Première des 3 grosses capacités du sprint « carte blanche » : **comprendre le dossier**. Socle = un moteur de contexte patient **100 % déterministe** (le Brain observe/classe des faits, n'invente rien ; l'interprétation IA reste séparée).
+- **`brain.js`** : `buildPatientContext` (identité+âge, compteurs, dernière consultation, traitements actifs, documents récents) + **`changesSinceLastConsult`** (« qu'est-ce qui a changé depuis la dernière consultation », factuel) + **`attention`** (couche proactive « N éléments à regarder », dérivée de `cockpit.computePatientSignals`). Réutilise `cockpit.js`, zéro duplication.
+- **`GET /api/patients/:id/context`** (requireAuth, déterministe, sans IA ni quota, instantané) — vérifié en prod.
+- **UI** (dossier patient) : carte **« Depuis la dernière consultation du X »** (chips par type : N Ordonnance/Imagerie/Analyse…) au-dessus de la couche attention existante (`pt2ChangesSince`, miroir client de `brain.js`).
+- **Tests** : `test/brain.test.js` (7). Suite complète **48/48** verte.
+- Reste du sprint : Consultation Intelligence (brief avant consultation + orchestration post-consultation) et Action Intelligence (proposition→validation + traçabilité Trust).
+
 ## [Non publié] — Sprint · Intégration Doctolib (mock-first) — 2026-08-14
 
 MediAI devient techniquement prêt à accueillir un connecteur Doctolib officiel **sans réécrire son architecture**. Livré **MOCK de bout en bout** ; le connecteur réel nécessite une intégration officielle. Cf [docs/integrations/doctolib.md](integrations/doctolib.md).
