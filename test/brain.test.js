@@ -72,3 +72,27 @@ test('ageFromBirth : calcul robuste', () => {
   const y = new Date().getFullYear() - 40;
   assert.equal(brain.ageFromBirth(y + '-01-01'), 40);
 });
+
+test('buildConsultationBrief : assemble motif, traitements, examens, points', () => {
+  const D = 86400000, iso = (d) => new Date(Date.now() - d * D).toISOString();
+  const patient = { id: 'p', prenom: 'Léa', nom: 'Moreau', date_naissance: '1980-01-01', sexe: 'F' };
+  const events = [
+    { id: 'c1', type: 'consultation', title: 'Suivi HTA', event_date: iso(40), data: { sections: { subjectif: { antecedents_pertinents: ['HTA', 'Diabète type 2'] } } } },
+    { id: 'a1', type: 'analyse_labo', title: 'HbA1c', event_date: iso(10), data: {} },
+    { id: 'o1', type: 'ordonnance', title: 'Ordo', event_date: iso(10), data: { prescriptions: [{ medicament: 'Metformine', posologie: '1000mg' }] } },
+    { id: 'c2', type: 'consultation', title: 'Contrôle', event_date: iso(1), data: {} },
+  ];
+  const appointments = [{ id: 'apt1', start_at: iso(-1), motif: 'Contrôle diabète', status: 'confirmed' }];
+  const b = brain.buildConsultationBrief({ patient, events, appointments });
+  assert.equal(b.deterministic, true);
+  assert.equal(b.motif, 'Contrôle diabète');
+  assert.deepEqual(b.antecedents.sort(), ['Diabète type 2', 'HTA']);
+  assert.equal(b.traitements[0].medicament, 'Metformine');
+  assert.equal(b.derniersExamens.length, 1);
+});
+
+test('pickUpcomingAppointment : préfère le RDV à venir', () => {
+  const D = 86400000, iso = (d) => new Date(Date.now() - d * D).toISOString();
+  const appts = [{ id: 'past', start_at: iso(5) }, { id: 'future', start_at: iso(-2) }];
+  assert.equal(brain.pickUpcomingAppointment(appts).id, 'future');
+});

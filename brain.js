@@ -114,4 +114,49 @@ function buildPatientContext({ patient, events, now = Date.now() }) {
   };
 }
 
-module.exports = { buildPatientContext, changesSinceLastConsult, attention, activeTreatments, ageFromBirth };
+// ── Brief de consultation (« 20 secondes ») — DÉTERMINISTE ───────────
+// Réorganise le contexte en un brief prêt-à-lire AVANT d'ouvrir le dossier :
+// motif · dernière consultation · antécédents · traitements · derniers examens
+// · points à surveiller. Les « questions pertinentes » relèvent de l'IA
+// (endpoint dédié) et sont explicitement laissées hors du brief factuel.
+function pickUpcomingAppointment(appointments, now = Date.now()) {
+  const list = (appointments || []).slice();
+  const future = list.filter((a) => new Date(a.start_at).getTime() >= now - 3600000)
+    .sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+  if (future[0]) return future[0];
+  return list.sort((a, b) => new Date(b.start_at) - new Date(a.start_at))[0] || null;
+}
+function antecedentsFrom(events) {
+  const consults = sortedDesc(events).filter((e) => e.type === 'consultation').slice(0, 2);
+  const set = new Set();
+  for (const c of consults) {
+    const arr = c.data && c.data.sections && c.data.sections.subjectif && c.data.sections.subjectif.antecedents_pertinents;
+    (Array.isArray(arr) ? arr : []).forEach((a) => { if (a && String(a).trim()) set.add(String(a).trim()); });
+  }
+  return [...set].slice(0, 6);
+}
+function buildConsultationBrief({ patient, events, appointments, now = Date.now() }) {
+  const ctx = buildPatientContext({ patient, events, now });
+  const appt = pickUpcomingAppointment(appointments, now);
+  const list = sortedDesc(events);
+  const derniersExamens = list.filter((e) => e.type === 'analyse_labo' || e.type === 'imagerie').slice(0, 3)
+    .map((e) => ({ id: e.id, type: e.type, label: cockpit.TYPE_LABELS[e.type] || e.type, title: e.title, date: e.event_date }));
+  return {
+    deterministic: true,
+    identity: ctx.identity,
+    motif: appt ? (appt.motif || null) : null,
+    appointment: appt ? { id: appt.id, start_at: appt.start_at, status: appt.status } : null,
+    derniereConsultation: ctx.lastConsultation,
+    changesSinceLastConsult: ctx.changesSinceLastConsult,
+    antecedents: antecedentsFrom(events),
+    traitements: ctx.activeTreatments.items,
+    derniersExamens,
+    pointsASurveiller: ctx.attention.items,
+    // Les questions d'interrogatoire pertinentes sont produites par l'IA
+    // (endpoint /preparation) et présentées séparément : jamais mélangées
+    // aux faits observés du brief.
+    aiPreparationAvailable: true,
+  };
+}
+
+module.exports = { buildPatientContext, changesSinceLastConsult, attention, activeTreatments, ageFromBirth, buildConsultationBrief, pickUpcomingAppointment };

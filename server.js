@@ -1611,6 +1611,26 @@ app.get('/api/patients/:id/context', requireAuth, async (req, res) => {
   }
 });
 
+// Brief de consultation « 20 secondes » — déterministe, instantané.
+// Assemble le contexte + le motif du RDV. Les questions IA restent séparées.
+app.get('/api/patients/:id/brief', requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) {
+      return res.status(404).json({ error: 'Patient introuvable' });
+    }
+    const [events, appointments] = await Promise.all([
+      db.listEventsByPatient(patient.id),
+      db.listAppointmentsByPatient(patient.id).catch(() => []),
+    ]);
+    const brief = brain.buildConsultationBrief({ patient, events, appointments });
+    res.json({ success: true, brief });
+  } catch (err) {
+    console.error('[ERROR patient brief]', err.message);
+    res.status(500).json({ error: 'Impossible de préparer le brief' });
+  }
+});
+
 app.get('/api/patients/:id/snapshot', aiLimiter, requireAuth, async (req, res) => {
   try {
     const patient = await db.getPatientById(req.params.id);
