@@ -96,3 +96,26 @@ test('pickUpcomingAppointment : préfère le RDV à venir', () => {
   const appts = [{ id: 'past', start_at: iso(5) }, { id: 'future', start_at: iso(-2) }];
   assert.equal(brain.pickUpcomingAppointment(appts).id, 'future');
 });
+
+test('proposeActions : propose ordonnance, courrier, suivi avec traçabilité', () => {
+  const cr = { id: 'ev1', event_date: '2026-08-15T09:00:00Z', data: { sections: { plan: {
+    prescriptions: [{ medicament: 'Amoxicilline' }],
+    orientations: ['Cardiologue'],
+    suivi: 'revoir dans 3 mois',
+    arret_travail: { prescrit: true, duree_jours: 3 },
+    examens_demandes: ['ECG'],
+  } } } };
+  const a = brain.proposeActions(cr);
+  const kinds = a.map((x) => x.kind);
+  assert.ok(kinds.includes('ordonnance') && kinds.includes('courrier') && kinds.includes('followup') && kinds.includes('arret') && kinds.includes('examen'));
+  // traçabilité : chaque proposition pointe vers sa consultation source
+  assert.ok(a.every((x) => x.source && x.source.type === 'consultation' && x.source.id === 'ev1'));
+  // statut « proposée » : jamais exécutée d'office
+  assert.ok(a.every((x) => x.status === 'proposed'));
+  const followup = a.find((x) => x.kind === 'followup');
+  assert.equal(followup.dueInDays, 90); // « 3 mois »
+});
+
+test('proposeActions : CR sans plan → aucune proposition', () => {
+  assert.deepEqual(brain.proposeActions({ id: 'e', data: {} }), []);
+});

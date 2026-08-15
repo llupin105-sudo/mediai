@@ -159,4 +159,44 @@ function buildConsultationBrief({ patient, events, appointments, now = Date.now(
   };
 }
 
-module.exports = { buildPatientContext, changesSinceLastConsult, attention, activeTreatments, ageFromBirth, buildConsultationBrief, pickUpcomingAppointment };
+// ── Action Intelligence — propositions post-consultation (DÉTERMINISTE) ──
+// À partir d'un compte-rendu, MediAI PROPOSE des actions (ordonnance, courrier,
+// tâches de suivi). Chaque proposition porte sa TRAÇABILITÉ (« source ») et
+// reste au statut « proposée » : l'IA propose, le professionnel valide.
+// JAMAIS d'exécution automatique — c'est le principe Trust du produit.
+function proposeActions(consultation) {
+  if (!consultation) return [];
+  const data = consultation.data || {};
+  const plan = (data.sections && data.sections.plan) || {};
+  const src = { type: 'consultation', id: consultation.id || null, date: consultation.event_date || null, section: 'plan' };
+  const out = [];
+
+  const prescriptions = (plan.prescriptions || []).filter((r) => r && r.medicament);
+  if (prescriptions.length) {
+    out.push({ kind: 'ordonnance', label: 'Préparer l’ordonnance', detail: prescriptions.map((r) => r.medicament).join(', '),
+      count: prescriptions.length, executable: 'modal', status: 'proposed', source: src });
+  }
+  const orientations = (plan.orientations || []).filter(Boolean);
+  orientations.forEach((o) => {
+    out.push({ kind: 'courrier', label: 'Rédiger le courrier d’orientation', detail: String(o),
+      executable: 'modal', status: 'proposed', source: src });
+  });
+  // Tâche de suivi : le plan dit « revoir dans X » → proposition datée, persistable.
+  const suiviDays = cockpit.parseDelayToDays(plan.suivi);
+  if (plan.suivi && plan.suivi !== '—') {
+    out.push({ kind: 'followup', label: 'Programmer le suivi', detail: String(plan.suivi),
+      dueInDays: suiviDays || null, executable: 'task', status: 'proposed', source: src });
+  }
+  const arret = plan.arret_travail || {};
+  if (arret.prescrit) {
+    out.push({ kind: 'arret', label: 'Établir l’arrêt de travail', detail: `${arret.duree_jours || '?'} jour(s)${arret.motif ? ' · ' + arret.motif : ''}`,
+      dueInDays: 0, executable: 'task', status: 'proposed', source: src });
+  }
+  (plan.examens_demandes || []).filter(Boolean).forEach((ex) => {
+    out.push({ kind: 'examen', label: 'Suivre l’examen demandé', detail: String(ex),
+      dueInDays: null, executable: 'task', status: 'proposed', source: src });
+  });
+  return out;
+}
+
+module.exports = { buildPatientContext, changesSinceLastConsult, attention, activeTreatments, ageFromBirth, buildConsultationBrief, pickUpcomingAppointment, proposeActions };

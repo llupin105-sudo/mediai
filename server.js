@@ -1631,6 +1631,48 @@ app.get('/api/patients/:id/brief', requireAuth, async (req, res) => {
   }
 });
 
+// Action Intelligence — propositions d'actions déterministes issues d'un CR.
+// L'IA PROPOSE ; le médecin valide (aucune exécution automatique).
+app.get('/api/patients/:id/consultations/:eventId/actions', requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) return res.status(404).json({ error: 'Patient introuvable' });
+    const ev = await db.getMedicalEventById(req.params.eventId);
+    if (!ev || ev.patient_id !== patient.id) return res.status(404).json({ error: 'Consultation introuvable' });
+    res.json({ success: true, actions: brain.proposeActions(ev) });
+  } catch (err) {
+    console.error('[ERROR consultation actions]', err.message);
+    res.status(500).json({ error: 'Impossible de charger les propositions' });
+  }
+});
+
+// Validation d'une action de suivi → tâche PERSISTÉE et TRAÇABLE.
+// source_ref lie la tâche à sa consultation d'origine (traçabilité + dédup).
+app.post('/api/patients/:id/follow-up-tasks', requireAuth, async (req, res) => {
+  try {
+    const patient = await db.getPatientById(req.params.id);
+    if (!patient || patient.medecin_id !== req.medecin.id) return res.status(404).json({ error: 'Patient introuvable' });
+    const { consultationId, kind, title, dueInDays } = req.body || {};
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'Intitulé requis' });
+    const due = (Number.isFinite(dueInDays) && dueInDays >= 0)
+      ? new Date(Date.now() + dueInDays * 86400000).toISOString() : null;
+    // source_ref = consultation:<id>:<kind> → une même proposition validée deux
+    // fois ne crée qu'une tâche (ON CONFLICT DO NOTHING côté db.createTask).
+    const sourceRef = 'consultation:' + (consultationId || 'na') + ':' + (kind || 'followup');
+    const task = await db.createTask({
+      id: crypto.randomUUID(), medecinId: req.medecin.id, patientId: patient.id,
+      title: String(title).slice(0, 300), description: 'Validé depuis une consultation (MediAI Brain).',
+      type: 'suivi', priority: 'moyenne', status: 'a_faire', dueDate: due,
+      source: 'ia', sourceRef,
+    });
+    // task null = déjà existante (dédup) : on répond quand même OK (idempotent).
+    res.json({ success: true, created: !!task, task: task || null });
+  } catch (err) {
+    console.error('[ERROR follow-up task]', err.message);
+    res.status(500).json({ error: 'Impossible d’enregistrer le suivi' });
+  }
+});
+
 app.get('/api/patients/:id/snapshot', aiLimiter, requireAuth, async (req, res) => {
   try {
     const patient = await db.getPatientById(req.params.id);
