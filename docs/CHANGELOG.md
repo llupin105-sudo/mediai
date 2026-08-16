@@ -4,6 +4,15 @@ Historique des changements notables de MediAI. Format inspiré de [Keep a Change
 
 ---
 
+## [Non publié] — Sprint « MediAI Brain » · Action Intelligence + Trust (3/3) — 2026-08-16
+
+Capacité 3/3 : **transformer les sorties IA en actions vérifiables** (génération → orchestration). Principe Trust : l'IA **propose**, le médecin **valide** ; jamais de décision/exécution automatique.
+- **`brain.proposeActions(consultation)`** (déterministe) : propositions issues du plan du CR — ordonnance, courrier, suivi daté, arrêt de travail, examen — chacune au statut `proposed` avec sa **traçabilité** (`source = {consultation id, date, section}`).
+- **`GET /api/patients/:id/consultations/:eventId/actions`** (propositions) + **`POST /api/patients/:id/follow-up-tasks`** : validation → **tâche persistée et traçable** (`source_ref = consultation:<id>:<kind>`, idempotent via `ON CONFLICT DO NOTHING`, échéance calculée). Vérifié en prod (create puis idempotent).
+- **UI** (panneau « Consultation prête ») : en-tête **Trust** « MediAI propose · vous validez · rien n'est automatique » ; « Suites à donner » → propositions **validables** (bouton Valider → tâche, ligne cochée) ; ligne **« Source : cette consultation · à vérifier »**.
+- **Tests** : +2 (`proposeActions` : propositions/traçabilité/statut, dossier vide). Suite **52/52** verte.
+- **Sprint « MediAI Brain » COMPLET (3/3)** : Patient Intelligence · Consultation Intelligence · Action Intelligence — autour d'un moteur de contexte déterministe, séparation nette fait observé / interprétation IA.
+
 ## [Non publié] — Sprint « MediAI Brain » · Consultation Intelligence — Brief 20s — 2026-08-15
 
 Capacité 2/3 (partie « avant la consultation ») : **préparer**. Un brief prêt-à-lire AVANT d'ouvrir le dossier.
